@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
+import { SmartSearch } from "../components/SmartSearch";
 import { Product } from "../types";
-import { ChevronRight, Shield, Target, Zap, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Shield, Target, Zap, SlidersHorizontal } from "lucide-react";
 
 interface HomeProps {
   onAddToCart: (product: Product) => void;
@@ -201,22 +202,12 @@ export function Home({ onAddToCart }: HomeProps) {
           </div>
 
           <div className="flex flex-col md:flex-row w-full lg:w-3/4 gap-4 items-center">
-            {/* Tactical Search Bar */}
-            <div className="relative w-full md:max-w-md group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-suopes-muted group-focus-within:text-suopes-gold transition-colors" />
-              </div>
-              <input
-                type="text"
-                placeholder="PROCURAR EQUIPAMENTO..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-suopes-gray/30 border border-suopes-gray py-3 pl-10 pr-4 text-xs font-mono tracking-widest text-suopes-white placeholder:text-suopes-muted/50 focus:outline-none focus:border-suopes-gold focus:ring-1 focus:ring-suopes-gold transition-all"
-              />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none opacity-50">
-                <span className="text-[8px] font-mono border border-suopes-muted px-1 rounded">ESC</span>
-              </div>
-            </div>
+            {/* Smart Search */}
+            <SmartSearch 
+              products={products} 
+              onSearch={setSearchQuery}
+              onCategorySelect={setSelectedCategory}
+            />
 
             {/* Category Filter Sliders */}
             <div className="flex flex-wrap gap-2 w-full">
