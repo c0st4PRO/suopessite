@@ -111,7 +111,6 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
     // Agora apenas verifica se tem 11 dígitos, sem travar por cálculo matemático
     return cleanCPF.length === 11;
   };
- Jonah
 
   const fetchAddress = async (searchCep: string) => {
     const cleanCep = searchCep.replace(/\D/g, "");

@@ -58,9 +58,14 @@ export function Home({ onAddToCart }: HomeProps) {
   ];
 
   const filteredProducts = products.filter(p => {
-    const matchesCategory = selectedCategory === "TODOS" || p.category === selectedCategory;
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!p) return false;
+    const category = p.category || "TODOS";
+    const name = p.name || "S/N";
+    const description = p.description || "";
+
+    const matchesCategory = selectedCategory === "TODOS" || category === selectedCategory;
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 

@@ -43,13 +43,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       </Link>
       
       <div className="flex justify-between items-start">
-        <div>
-          <Link to={`/product/${product.id}`} className="block text-sm font-bold hover:text-suopes-gold transition-colors">
-            {product.name}
+        <div className="flex-1 min-w-0 pr-2">
+          <Link to={`/product/${product.id}`} className="block text-sm font-bold hover:text-suopes-gold transition-colors truncate uppercase">
+            {product.name || "EQUIPAMENTO SEM NOME"}
           </Link>
-          <p className="text-[10px] font-mono text-suopes-muted mt-1">{product.sku}</p>
+          <p className="text-[10px] font-mono text-suopes-muted mt-1 truncate">{product.sku || "SKU-PENDENTE"}</p>
         </div>
-        <span className="text-sm font-mono text-suopes-gold">R$ {product.price.toFixed(2)}</span>
+        <span className="text-sm font-mono text-suopes-gold whitespace-nowrap">
+          R$ {typeof product.price === 'number' ? product.price.toFixed(2) : Number(product.price || 0).toFixed(2)}
+        </span>
       </div>
     </motion.div>
   );

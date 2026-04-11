@@ -642,15 +642,14 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                       <button className="p-1 text-suopes-muted hover:text-white"><ChevronRight size={12} /></button>
                     </div>
                   </div>
-                  <Link to={`/product/${relatedProduct.id}`} className="flex items-center gap-4 bg-suopes-gold p-1 group">
-                    <div className="w-16 h-16 bg-white flex-shrink-0">
-                      <img src={relatedProduct.image} alt={relatedProduct.name} className="w-full h-full object-cover transition-all" referrerPolicy="no-referrer" />
- Jonah
-                    </div>
-                    <div className="flex-grow">
-                      <h4 className="text-[10px] font-bold text-black uppercase leading-tight">{relatedProduct.name}</h4>
-                      <p className="text-[10px] text-black font-mono">R$ {relatedProduct.price.toFixed(2)}</p>
-                      <p className="text-[8px] text-black/60 font-mono">ou 2x de R$ {(relatedProduct.price / 2).toFixed(2)}</p>
+                    <div className="flex-grow min-w-0">
+                      <h4 className="text-[10px] font-bold text-black uppercase leading-tight truncate">{relatedProduct.name || "S/N"}</h4>
+                      <p className="text-[10px] text-black font-mono">
+                        R$ {typeof relatedProduct.price === 'number' ? relatedProduct.price.toFixed(2) : Number(relatedProduct.price || 0).toFixed(2)}
+                      </p>
+                      <p className="text-[8px] text-black/60 font-mono">
+                        ou 2x de R$ {( (typeof relatedProduct.price === 'number' ? relatedProduct.price : Number(relatedProduct.price || 0)) / 2).toFixed(2)}
+                      </p>
                     </div>
                   </Link>
                 </div>

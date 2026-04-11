@@ -515,13 +515,26 @@ async function startServer() {
   app.get("/api/products", async (req, res) => {
     try {
       const [rows]: any = await db.execute("SELECT * FROM products ORDER BY created_at DESC");
-      const mappedProducts = rows.map((p: any) => ({
-        ...p,
-        inStock: p.in_stock === 1,
-        images: Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images) : [p.image, p.image, p.image, p.image]),
-        colors: Array.isArray(p.colors) ? p.colors : (typeof p.colors === 'string' ? JSON.parse(p.colors) : []),
-        featured: p.featured === 1
-      }));
+      const mappedProducts = rows.map((p: any) => {
+        let images = [p.image, p.image, p.image, p.image];
+        let colors = [];
+        
+        try {
+          if (p.images) images = typeof p.images === 'string' ? JSON.parse(p.images) : p.images;
+        } catch (e) { console.error("Erro parse imagens:", e); }
+        
+        try {
+          if (p.colors) colors = typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors;
+        } catch (e) { console.error("Erro parse cores:", e); }
+
+        return {
+          ...p,
+          inStock: p.in_stock === 1,
+          images: Array.isArray(images) ? images : [p.image, p.image, p.image, p.image],
+          colors: Array.isArray(colors) ? colors : [],
+          featured: p.featured === 1
+        };
+      });
       res.json(mappedProducts);
     } catch (err) {
       console.error("Erro ao buscar produtos:", err);
