@@ -28,7 +28,15 @@ const db = mysql.createPool({
 });
 
 async function initializeDatabase() {
+  console.log("Tentando conectar ao banco de dados MySQL...");
+  console.log(`Configuração: Host=${process.env.DB_HOST || 'localhost'}, User=${process.env.DB_USER || 'u177568398_admin'}, DB=${process.env.DB_NAME || 'u177568398_suopes'}`);
+  
   try {
+    // Testar conexão
+    const connection = await db.getConnection();
+    console.log("Conexão com o banco de dados estabelecida com sucesso!");
+    connection.release();
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(255) PRIMARY KEY,
@@ -97,9 +105,12 @@ async function initializeDatabase() {
       );
     `);
 
-    console.log("Banco de dados MySQL inicializado com sucesso.");
-  } catch (err) {
-    console.error("Erro ao inicializar banco de dados:", err);
+    console.log("Banco de dados MySQL inicializado e tabelas verificadas.");
+  } catch (err: any) {
+    console.error("ERRO CRÍTICO NO BANCO DE DADOS:");
+    console.error(`Mensagem: ${err.message}`);
+    console.error(`Código Erro: ${err.code}`);
+    console.error(`Stack: ${err.stack}`);
   }
 }
 
