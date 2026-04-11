@@ -887,7 +887,9 @@ async function startServer() {
           id: order.id,
           date: formattedDate,
           status: order.status,
+          paymentStatus: order.payment_status,
           total: order.total,
+          shippingCost: order.shipping_cost,
           items: mappedItems,
           trackingCode: null
         });

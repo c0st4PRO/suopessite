@@ -6,8 +6,10 @@ import { Link } from "react-router-dom";
 interface Order {
   id: string;
   date: string;
-  status: "processando" | "enviado" | "entregue" | "cancelado";
+  status: "processando" | "enviado" | "entregue" | "cancelado" | "pendente";
+  paymentStatus: "pending" | "approved" | "rejected" | "cancelled" | "in_process";
   total: number;
+  shippingCost?: number;
   items: {
     name: string;
     quantity: number;
@@ -34,18 +36,29 @@ export function ClientOrders({ user }: { user: User | null }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let interval: any;
+    
+    const loadOrders = async () => {
+      if (!user) return;
+      try {
+        const res = await fetch(`/api/orders?userId=${user.id}`);
+        const data = await res.json();
+        setOrders(data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Erro ao carregar pedidos", err);
+        setLoading(false);
+      }
+    };
+
+    loadOrders();
+
+    // POLLING: Monitorar mudanças de status a cada 10 segundos
     if (user) {
-      fetch(`/api/orders?userId=${user.id}`)
-        .then(res => res.json())
-        .then(data => {
-          setOrders(data);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error("Erro ao carregar pedidos", err);
-          setLoading(false);
-        });
+      interval = setInterval(loadOrders, 10000);
     }
+
+    return () => clearInterval(interval);
   }, [user]);
   if (!user) {
     return (
@@ -104,9 +117,21 @@ export function ClientOrders({ user }: { user: User | null }) {
                   <div className="flex items-center gap-8">
                     <div className="text-right">
                       <span className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Status</span>
-                      <div className={`flex items-center gap-2 text-xs font-bold ${OrderStatusConfig.color}`}>
-                        <StatusIcon size={16} />
-                        {OrderStatusConfig.label}
+                      <div className={`flex flex-col items-end gap-1`}>
+                        <div className={`flex items-center gap-2 text-[10px] font-bold ${OrderStatusConfig.color}`}>
+                          <StatusIcon size={14} />
+                          {OrderStatusConfig.label}
+                        </div>
+                        {order.paymentStatus === "pending" && (
+                          <span className="text-[9px] font-mono text-suopes-gold bg-suopes-gold/10 px-2 py-0.5 border border-suopes-gold/30">
+                            AGUARDANDO PAGAMENTO
+                          </span>
+                        )}
+                        {order.paymentStatus === "approved" && order.status === "pendente" && (
+                          <span className="text-[9px] font-mono text-green-400 bg-green-400/10 px-2 py-0.5 border border-green-400/30">
+                            PAGAMENTO CONFIRMADO
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">

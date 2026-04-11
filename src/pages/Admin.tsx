@@ -588,7 +588,7 @@ export function Admin() {
                   <div>
                     <h4 className="text-[10px] font-bold uppercase leading-tight line-clamp-2">{product.name}</h4>
                     <p className="text-[8px] font-mono text-suopes-muted mt-1">{product.sku}</p>
-                    <p className="text-[10px] font-mono text-suopes-gold mt-1">R$ {product.price.toFixed(2)}</p>
+                    <p className="text-[10px] font-mono text-suopes-gold mt-1">R$ {Number(product.price || 0).toFixed(2)}</p>
                   </div>
                   <button 
                     onClick={() => setDeleteId(product.id)}
@@ -820,7 +820,7 @@ export function Admin() {
                     <span className="text-suopes-muted">
                       {new Date(order.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
                     </span>
-                    <span className="text-suopes-gold font-bold">R$ {order.total?.toFixed(2)}</span>
+                    <span className="text-suopes-gold font-bold">R$ {Number(order.total || 0).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -879,9 +879,9 @@ export function Admin() {
                                   {getPaymentStatusLabel(order.paymentStatus)}
                                 </span>
                               </p>
-                              <p><span className="text-suopes-muted">SUBTOTAL:</span> <span className="text-white">R$ {(order.total - (order.shippingCost || 0)).toFixed(2)}</span></p>
-                              <p><span className="text-suopes-muted">FRETE:</span> <span className="text-white">R$ {(order.shippingCost || 0).toFixed(2)}</span></p>
-                              <p className="border-t border-suopes-gray pt-2 mt-2"><span className="text-suopes-gold font-bold">TOTAL: R$ {order.total?.toFixed(2)}</span></p>
+                              <p><span className="text-suopes-muted">SUBTOTAL:</span> <span className="text-white">R$ {(Number(order.total || 0) - Number(order.shippingCost || 0)).toFixed(2)}</span></p>
+                              <p><span className="text-suopes-muted">FRETE:</span> <span className="text-white">R$ {Number(order.shippingCost || 0).toFixed(2)}</span></p>
+                              <p className="border-t border-suopes-gray pt-2 mt-2"><span className="text-suopes-gold font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</span></p>
                               {order.mpId && <p><span className="text-suopes-muted">MP ID:</span> <span className="text-suopes-muted">{order.mpId}</span></p>}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleCheckPayment(order.id); }}
@@ -928,7 +928,7 @@ export function Admin() {
                                       {!item.color && !item.size && '--'}
                                     </td>
                                     <td className="p-3 text-center text-white">{item.quantity}x</td>
-                                    <td className="p-3 text-right text-suopes-gold">R$ {(item.price * item.quantity).toFixed(2)}</td>
+                                    <td className="p-3 text-right text-suopes-gold">R$ {(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}</td>
                                   </tr>
                                 ))}
                               </tbody>
