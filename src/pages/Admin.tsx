@@ -867,6 +867,7 @@ export function Admin() {
                             {order.address ? (
                               <div className="space-y-1 text-xs font-mono">
                                 <p className="text-white">{order.address.address}, {order.address.number}</p>
+                                <p className="text-white">{order.address.neighborhood}</p>
                                 <p className="text-white">{order.address.city} - {order.address.state}</p>
                                 <p className="text-suopes-muted">CEP: {order.address.cep}</p>
                               </div>
