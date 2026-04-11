@@ -65,6 +65,8 @@ async function initializeDatabase() {
         shipping_cost DECIMAL(10,2) DEFAULT 0,
         shipping_address TEXT,
         payment_method VARCHAR(50),
+        customer_cpf VARCHAR(20),
+        customer_phone VARCHAR(50),
         mp_id VARCHAR(255),
         mp_qr_code_base64 LONGTEXT,
         mp_qr_code TEXT
@@ -106,6 +108,10 @@ async function initializeDatabase() {
     `);
 
     const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
+    // Migração: Adicionar colunas caso não existam (para sites já em produção)
+    try { await db.query("ALTER TABLE orders ADD COLUMN customer_cpf VARCHAR(20)"); } catch (e) {}
+    try { await db.query("ALTER TABLE orders ADD COLUMN customer_phone VARCHAR(50)"); } catch (e) {}
+
     console.log(`MODO MERCADO PAGO: ${mpActivated ? 'REAL (ATIVADO)' : 'MOCK (SIMULADO)'}`);
     console.log(`APP_URL: ${process.env.APP_URL || 'NÃO CONFIGURADO (Webhook pode falhar)'}`);
     
@@ -637,10 +643,14 @@ async function startServer() {
   });
 
   app.post("/api/checkout", async (req, res) => {
-    const { userId, payerEmail, payerName, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;
+    const { userId, payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;
     
     if (!items || !items.length || !totalAmount) {
       return res.status(400).json({ message: "Carrinho vazio ou inválido" });
+    }
+
+    if (!cpf || !phone) {
+      return res.status(400).json({ message: "CPF e Telefone são obrigatórios para checkout." });
     }
 
     try {
@@ -708,10 +718,12 @@ async function startServer() {
         }
       }
 
-      await db.execute(`
-        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, mp_id, mp_qr_code_base64, mp_qr_code)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
+      const query = `
+        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      await db.execute(query, [
         orderId, 
         userId || "anonymous",
         payerName || "Não informado",
@@ -719,7 +731,10 @@ async function startServer() {
         totalAmount, 
         shippingCost || 0,
         JSON.stringify(shippingAddress),
+        JSON.stringify(shippingAddress),
         paymentMethod,
+        cpf,
+        phone,
         mp_id,
         mp_qr_code_base64,
         mp_qr_code
@@ -924,7 +939,9 @@ async function startServer() {
           mpId: order.mp_id,
           customer: {
             name: order.customer_name || "Não informado",
-            email: order.customer_email || order.user_id || "Não informado"
+            email: order.customer_email || order.user_id || "Não informado",
+            cpf: order.customer_cpf || "Não informado",
+            phone: order.customer_phone || "Não informado"
           },
           address: parsedAddress,
           items: items.map((i: any) => ({

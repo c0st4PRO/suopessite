@@ -24,6 +24,10 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
   const [number, setNumber] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [phone, setPhone] = useState("");
+  const [cpfError, setCpfError] = useState("");
+  const [fetchingAddress, setFetchingAddress] = useState(false);
   
   const [shippingOptions, setShippingOptions] = useState<any[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<any>(null);
@@ -63,10 +67,14 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
   }, [step, dbOrderId, paymentMethod, paymentStatus]);
 
   useEffect(() => {
+    if (!user) {
+      navigate("/login", { state: { from: "/checkout" } });
+      return;
+    }
     if (cart.length === 0 && step !== "success") {
       navigate("/");
     }
-  }, [cart]);
+  }, [cart, user, navigate, step]);
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const total = subtotal + (selectedShipping ? selectedShipping.cost : 0);
@@ -97,8 +105,57 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
     }
   };
 
+  const validateCPF = (cpfValue: string) => {
+    const cleanCPF = cpfValue.replace(/\D/g, "");
+    if (cleanCPF.length !== 11 || /^(\d)\1+$/.test(cleanCPF)) return false;
+    
+    let sum = 0;
+    let rest;
+    for (let i = 1; i <= 9; i++) sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (11 - i);
+    rest = (sum * 10) % 11;
+    if ((rest === 10) || (rest === 11)) rest = 0;
+    if (rest !== parseInt(cleanCPF.substring(9, 10))) return false;
+    
+    sum = 0;
+    for (let i = 1; i <= 10; i++) sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (12 - i);
+    rest = (sum * 10) % 11;
+    if ((rest === 10) || (rest === 11)) rest = 0;
+    if (rest !== parseInt(cleanCPF.substring(10, 11))) return false;
+    
+    return true;
+  };
+
+  const fetchAddress = async (searchCep: string) => {
+    const cleanCep = searchCep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+    
+    setFetchingAddress(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddress(data.logradouro);
+        setCity(data.localidade);
+        setState(data.uf);
+        fetchShipping(cleanCep);
+      }
+    } catch (e) {
+      console.error("Erro ViaCEP:", e);
+    } finally {
+      setFetchingAddress(false);
+    }
+  };
+
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateCPF(cpf)) {
+      setCpfError("CPF Inválido. Verifique os números.");
+      return;
+    } else {
+      setCpfError("");
+    }
+
     if (!selectedShipping) {
       if (shippingOptions.length === 0) {
         setError("Por favor, digite seu CEP completo (8 dígitos) para carregar as opções de frete.");
@@ -119,6 +176,8 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
           userId: user?.id || email,
           payerEmail: email,
           payerName: name,
+          cpf: cpf.replace(/\D/g, ""),
+          phone: phone.replace(/\D/g, ""),
           items: cart,
           shippingAddress: { cep, address, number, city, state },
           paymentMethod,
@@ -257,22 +316,48 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
               <section>
                 <h2 className="text-xl font-black uppercase mb-4 tracking-tight">Contato</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input 
-                    type="email" 
-                    required 
-                    placeholder="E-mail Operacional" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
-                  />
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="Nome Completo / Callsign" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
-                  />
+                  <div className="space-y-1">
+                    <input 
+                      type="email" 
+                      required 
+                      placeholder="E-mail Operacional" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Nome Completo / Callsign" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="CPF (Apenas números)" 
+                      value={cpf}
+                      onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").substring(0, 11))}
+                      onBlur={() => !validateCPF(cpf) && setCpfError("CPF Inválido")}
+                      className={`w-full bg-suopes-gray/10 border ${cpfError ? 'border-suopes-red' : 'border-suopes-gray'} h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono`}
+                    />
+                    {cpfError && <p className="text-[10px] text-suopes-red font-mono uppercase">{cpfError}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="WhatsApp / Telefone" 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").substring(0, 11))}
+                      className="w-full bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -280,15 +365,19 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
               <section>
                 <h2 className="text-xl font-black uppercase mb-4 tracking-tight">Zona de Entrega</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="CEP" 
-                    maxLength={8}
-                    value={cep}
-                    onChange={handleCepChange}
-                    className="w-full md:col-span-1 bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
-                  />
+                  <div className="relative md:col-span-1">
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="CEP" 
+                      maxLength={8}
+                      value={cep}
+                      onChange={handleCepChange}
+                      onBlur={() => fetchAddress(cep)}
+                      className={`w-full bg-suopes-gray/10 border ${fetchingAddress ? 'border-suopes-gold animate-pulse' : 'border-suopes-gray'} h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono`}
+                    />
+                    {fetchingAddress && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-t-2 border-suopes-gold rounded-full animate-spin"></div>}
+                  </div>
                   <input 
                     type="text" 
                     required 

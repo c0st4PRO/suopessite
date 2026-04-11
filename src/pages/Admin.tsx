@@ -853,6 +853,8 @@ export function Admin() {
                             </h4>
                             <div className="space-y-2 text-xs font-mono">
                               <p><span className="text-suopes-muted">NOME:</span> <span className="text-white">{order.customer?.name}</span></p>
+                              <p><span className="text-suopes-muted">CPF:</span> <span className="text-white">{order.customer?.cpf}</span></p>
+                              <p><span className="text-suopes-muted">TEL:</span> <span className="text-white">{order.customer?.phone}</span></p>
                               <p className="flex items-center gap-1"><Mail size={10} className="text-suopes-muted" /> <span className="text-white">{order.customer?.email}</span></p>
                             </div>
                           </div>
