@@ -114,28 +114,37 @@ export function ClientOrders({ user }: { user: User | null }) {
                     <p className="text-[10px] font-mono text-suopes-muted">{order.date}</p>
                   </div>
 
-                  <div className="flex items-center gap-8">
-                    <div className="text-right">
-                      <span className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Status</span>
-                      <div className={`flex flex-col items-end gap-1`}>
-                        <div className={`flex items-center gap-2 text-[10px] font-bold ${OrderStatusConfig.color}`}>
-                          <StatusIcon size={14} />
-                          {OrderStatusConfig.label}
-                        </div>
-                        {order.paymentStatus === "pending" && (
-                          <span className="text-[9px] font-mono text-suopes-gold bg-suopes-gold/10 px-2 py-0.5 border border-suopes-gold/30">
-                            AGUARDANDO PAGAMENTO
-                          </span>
-                        )}
-                        {order.paymentStatus === "approved" && order.status === "pendente" && (
-                          <span className="text-[9px] font-mono text-green-400 bg-green-400/10 px-2 py-0.5 border border-green-400/30">
-                            PAGAMENTO CONFIRMADO
-                          </span>
-                        )}
+                  <div className="flex flex-wrap items-center gap-6 md:gap-8">
+                    <div className="text-right min-w-[100px]">
+                      <span className="text-[9px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Entrega</span>
+                      <div className={`flex items-center justify-end gap-2 text-[10px] font-bold ${OrderStatusConfig.color}`}>
+                        <StatusIcon size={14} />
+                        {OrderStatusConfig.label}
                       </div>
                     </div>
+
+                    <div className="text-right min-w-[120px]">
+                      <span className="text-[9px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Pagamento</span>
+                      {order.paymentStatus === "approved" ? (
+                        <div className="flex items-center justify-end gap-1.5 text-green-400 text-[10px] font-bold">
+                          <CheckCircle2 size={14} />
+                          PAGO
+                        </div>
+                      ) : order.paymentStatus === "rejected" || order.paymentStatus === "cancelled" ? (
+                        <div className="flex items-center justify-end gap-1.5 text-suopes-red text-[10px] font-bold">
+                          <X size={14} />
+                          NEGADO
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5 text-suopes-gold text-[10px] font-bold">
+                          <Clock size={14} />
+                          AGUARDANDO
+                        </div>
+                      )}
+                    </div>
+
                     <div className="text-right">
-                      <span className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Total</span>
+                      <span className="text-[9px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Total</span>
                       <span className="text-lg font-black text-suopes-gold">R$ {Number(order.total).toFixed(2)}</span>
                     </div>
                   </div>
