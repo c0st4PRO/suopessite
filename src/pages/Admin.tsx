@@ -41,7 +41,14 @@ export function Admin() {
     fetchProducts();
     if (activeTab === "marketing") fetchSubscribers();
     if (activeTab === "demanda") fetchWaitlist();
-    if (activeTab === "logistica") fetchAdminOrders();
+    
+    let interval: any;
+    if (activeTab === "logistica") {
+      fetchAdminOrders();
+      interval = setInterval(fetchAdminOrders, 5000); // Polling de 5s como solicitado
+    }
+    
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   const fetchProducts = async () => {
