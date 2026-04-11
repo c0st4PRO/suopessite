@@ -220,7 +220,6 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
   console.log("Transporter configurado com Gmail real.");
 } else {
- Jonah
   nodemailer.createTestAccount().then(account => {
     transporter = nodemailer.createTransport({
       host: account.smtp.host,
@@ -240,7 +239,6 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, PERSISTENT_UPLOADS_DIR);
   },
- Jonah
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
