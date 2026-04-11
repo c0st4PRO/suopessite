@@ -221,6 +221,64 @@ export default function App() {
           onUpdateQuantity={updateQuantity}
         />
         <MusicPlayer />
+
+        {/* WhatsApp Floating Button */}
+        <a
+          id="whatsapp-btn"
+          href="https://wa.me/551153047015?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20SUOPES%20Tactical%20e%20gostaria%20de%20tirar%20uma%20d%C3%BAvida."
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Falar no WhatsApp"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            width: '58px',
+            height: '58px',
+            borderRadius: '50%',
+            backgroundColor: '#25D366',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(37, 211, 102, 0.5)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            animation: 'whatsapp-pulse 2.5s infinite',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.12)';
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 6px 28px rgba(37, 211, 102, 0.7)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)';
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 4px 20px rgba(37, 211, 102, 0.5)';
+          }}
+        >
+          {/* Pulse ring */}
+          <span style={{
+            position: 'absolute',
+            width: '58px',
+            height: '58px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(37, 211, 102, 0.4)',
+            animation: 'whatsapp-ring 2.5s infinite',
+          }} />
+          {/* WhatsApp SVG Icon */}
+          <svg viewBox="0 0 32 32" width="32" height="32" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 .5C7.44.5.5 7.44.5 16c0 2.74.7 5.41 2.04 7.77L.5 31.5l7.95-2.08A15.43 15.43 0 0016 31.5C24.56 31.5 31.5 24.56 31.5 16S24.56.5 16 .5zm0 28.18a13.6 13.6 0 01-6.93-1.9l-.5-.3-5.2 1.36 1.4-5.07-.33-.52A13.65 13.65 0 0116 2.32c7.52 0 13.68 6.16 13.68 13.68 0 7.52-6.16 13.68-13.68 13.68zm7.5-10.23c-.41-.21-2.44-1.2-2.82-1.34-.38-.14-.65-.21-.93.21-.27.41-1.07 1.34-1.31 1.62-.24.27-.48.3-.89.1-.41-.21-1.74-.64-3.31-2.04-1.22-1.09-2.05-2.44-2.29-2.85-.24-.41-.03-.63.18-.84.18-.18.41-.48.62-.72.2-.24.27-.41.41-.69.14-.27.07-.51-.03-.72-.1-.21-.93-2.24-1.27-3.06-.33-.8-.67-.69-.93-.7h-.79c-.27 0-.72.1-1.1.51-.38.41-1.44 1.41-1.44 3.43 0 2.03 1.48 3.99 1.69 4.27.21.27 2.91 4.44 7.06 6.23.99.43 1.76.68 2.36.87.99.32 1.9.27 2.61.16.79-.12 2.44-.99 2.79-1.95.34-.96.34-1.79.24-1.96-.1-.17-.38-.27-.79-.48z"/>
+          </svg>
+          <style>{`
+            @keyframes whatsapp-pulse {
+              0%, 100% { box-shadow: 0 4px 20px rgba(37,211,102,0.5); }
+              50% { box-shadow: 0 4px 30px rgba(37,211,102,0.8); }
+            }
+            @keyframes whatsapp-ring {
+              0% { transform: scale(1); opacity: 0.6; }
+              100% { transform: scale(1.7); opacity: 0; }
+            }
+          `}</style>
+        </a>
+
       </div>
     </Router>
   );
