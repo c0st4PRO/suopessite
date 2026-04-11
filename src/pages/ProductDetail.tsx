@@ -642,6 +642,10 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                       <button className="p-1 text-suopes-muted hover:text-white"><ChevronRight size={12} /></button>
                     </div>
                   </div>
+                  <Link to={`/product/${relatedProduct.id}`} className="flex items-center gap-4 bg-suopes-gold p-1 group">
+                    <div className="w-16 h-16 bg-white flex-shrink-0">
+                      <img src={relatedProduct.image} alt={relatedProduct.name} className="w-full h-full object-cover transition-all" referrerPolicy="no-referrer" />
+                    </div>
                     <div className="flex-grow min-w-0">
                       <h4 className="text-[10px] font-bold text-black uppercase leading-tight truncate">{relatedProduct.name || "S/N"}</h4>
                       <p className="text-[10px] text-black font-mono">
