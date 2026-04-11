@@ -1,0 +1,243 @@
+[
+  {
+    "id": "suo-001",
+    "name": "COLETE PLATE CARRIER 1000D COMBAT",
+    "price": 1,
+    "category": "EQUIPAMENTO",
+    "sku": "SUO-RH-V2-BLK",
+    "image": "https://i.ibb.co/qMnZpWYr/Coletor-t-tico-verde-oliva-em-est-dio.png",
+    "images": [
+      "https://i.ibb.co/qMnZpWYr/Coletor-t-tico-verde-oliva-em-est-dio.png",
+      "https://picsum.photos/seed/suopes1b/800/1000",
+      "https://picsum.photos/seed/suopes1c/800/1000",
+      "https://picsum.photos/seed/suopes1d/800/1000"
+    ],
+    "description": "Moletom de alta performance. Mistura de algodão pesado. Corte tático.",
+    "inStock": true,
+    "hasSizes": false,
+    "sizes": [
+      "P",
+      "M",
+      "G",
+      "GG"
+    ],
+    "colors": [
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": true,
+        "imageIndex": 3,
+        "sizeStock": {}
+      },
+      {
+        "name": "WOLF GREY",
+        "hex": "#4A4A4A",
+        "inStock": true,
+        "imageIndex": 1
+      },
+      {
+        "name": "RANGER GREEN",
+        "hex": "#4B5320",
+        "inStock": true,
+        "imageIndex": 0,
+        "sizeStock": {}
+      }
+    ]
+  },
+  {
+    "id": "suo-002",
+    "name": "BONÉ OPERATOR",
+    "price": 149,
+    "category": "HEADWEAR",
+    "sku": "SUO-OC-CB",
+    "image": "https://picsum.photos/seed/suopes2/800/1000",
+    "images": [
+      "https://picsum.photos/seed/suopes2/800/1000",
+      "https://picsum.photos/seed/suopes2b/800/1000",
+      "https://picsum.photos/seed/suopes2c/800/1000",
+      "https://picsum.photos/seed/suopes2d/800/1000"
+    ],
+    "description": "Boné de perfil baixo. Alça ajustável. Painel frontal de velcro.",
+    "inStock": false,
+    "colors": [
+      {
+        "name": "COYOTE",
+        "hex": "#826644",
+        "inStock": false,
+        "imageIndex": 0
+      },
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": false,
+        "imageIndex": 1
+      }
+    ],
+    "sizes": [],
+    "hasSizes": false
+  },
+  {
+    "id": "suo-003",
+    "name": "CAMISETA MISSION",
+    "price": 189,
+    "category": "VESTUÁRIO",
+    "sku": "SUO-MT-OD",
+    "image": "https://picsum.photos/seed/suopes3/800/1000",
+    "images": [
+      "https://picsum.photos/seed/suopes3/800/1000",
+      "https://picsum.photos/seed/suopes3b/800/1000",
+      "https://picsum.photos/seed/suopes3c/800/1000",
+      "https://picsum.photos/seed/suopes3d/800/1000"
+    ],
+    "description": "Camiseta padrão de missão. 100% algodão penteado. Gráficos em silk.",
+    "inStock": true,
+    "hasSizes": true,
+    "sizes": [
+      "P",
+      "M",
+      "G",
+      "GG",
+      "XG"
+    ],
+    "colors": [
+      {
+        "name": "OD GREEN",
+        "hex": "#354230",
+        "inStock": true,
+        "imageIndex": 0
+      },
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": true,
+        "imageIndex": 1
+      },
+      {
+        "name": "BRANCO",
+        "hex": "#FFFFFF",
+        "inStock": true,
+        "imageIndex": 2
+      }
+    ]
+  },
+  {
+    "id": "suo-004",
+    "name": "BANDOLEIRA TÁTICA",
+    "price": 299,
+    "category": "EQUIPAMENTO",
+    "sku": "SUO-TS-MC",
+    "image": "https://picsum.photos/seed/suopes4/800/1000",
+    "images": [
+      "https://picsum.photos/seed/suopes4/800/1000",
+      "https://picsum.photos/seed/suopes4b/800/1000",
+      "https://picsum.photos/seed/suopes4c/800/1000",
+      "https://picsum.photos/seed/suopes4d/800/1000"
+    ],
+    "description": "Bandoleira ajustável de dois pontos. Ferragens de desengate rápido.",
+    "inStock": true,
+    "colors": [
+      {
+        "name": "MULTICAM",
+        "hex": "#7B735F",
+        "inStock": true,
+        "imageIndex": 0
+      },
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": true,
+        "imageIndex": 1
+      }
+    ]
+  },
+  {
+    "id": "suo-005",
+    "name": "POUCH FIELD NOTES",
+    "price": 120,
+    "category": "EQUIPAMENTO",
+    "sku": "SUO-FNP-BLK",
+    "image": "https://picsum.photos/seed/suopes5/800/1000",
+    "images": [
+      "https://picsum.photos/seed/suopes5/800/1000",
+      "https://picsum.photos/seed/suopes5b/800/1000",
+      "https://picsum.photos/seed/suopes5c/800/1000",
+      "https://picsum.photos/seed/suopes5d/800/1000"
+    ],
+    "description": "Bolsa resistente às intempéries para notas de campo e ferramentas. Compatível com MOLLE.",
+    "inStock": false,
+    "colors": [
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": false,
+        "imageIndex": 0
+      }
+    ]
+  },
+  {
+    "id": "suo-006",
+    "name": "CAMISETA NIGHT VISION",
+    "price": 199,
+    "category": "VESTUÁRIO",
+    "sku": "SUO-NVT-WHT",
+    "image": "https://picsum.photos/seed/suopes6/800/1000",
+    "images": [
+      "https://picsum.photos/seed/suopes6/800/1000",
+      "https://picsum.photos/seed/suopes6b/800/1000",
+      "https://picsum.photos/seed/suopes6c/800/1000",
+      "https://picsum.photos/seed/suopes6d/800/1000"
+    ],
+    "description": "Gráficos que brilham no escuro. Algodão de peso premium. Corte atlético.",
+    "inStock": true,
+    "colors": [
+      {
+        "name": "BRANCO",
+        "hex": "#FFFFFF",
+        "inStock": true,
+        "imageIndex": 0
+      },
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": true,
+        "imageIndex": 1
+      }
+    ]
+  },
+  {
+    "id": "suo-007",
+    "name": "WOSPORT COLETE MULTI-MISSION",
+    "price": 890,
+    "category": "EQUIPAMENTO",
+    "sku": "SUO-WPC-OD",
+    "image": "https://i.ibb.co/mCgXKM57/50473479951-1a5c6f018b-k.jpg",
+    "images": [
+      "https://i.ibb.co/mCgXKM57/50473479951-1a5c6f018b-k.jpg",
+      "https://i.ibb.co/mCgXKM57/50473479951-1a5c6f018b-k.jpg",
+      "https://i.ibb.co/mCgXKM57/50473479951-1a5c6f018b-k.jpg",
+      "https://i.ibb.co/mCgXKM57/50473479951-1a5c6f018b-k.jpg"
+    ],
+    "description": "Colete porta-placas multi-missão de alta resistência. Sistema modular, ajuste ergonômico e compatibilidade com diversos acessórios táticos.",
+    "inStock": true,
+    "colors": [
+      {
+        "name": "OD GREEN",
+        "hex": "#354230",
+        "inStock": true,
+        "imageIndex": 0
+      },
+      {
+        "name": "PRETO",
+        "hex": "#000000",
+        "inStock": true,
+        "imageIndex": 1
+      },
+      {
+        "name": "COYOTE",
+        "hex": "#826644",
+        "inStock": true,
+        "imageIndex": 2
+      }
+    ]
+  }
+]

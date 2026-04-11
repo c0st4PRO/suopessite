@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "image": "https://i.postimg.cc/k4FcNYxx/savekit-image-919a7d239725031c.jpg",
+    "title": "OPERAÇÃO SOMBRA",
+    "context": "Treinamento de infiltração noturna em ambiente urbano. O uso do Moletom Recce V2 permitiu baixa assinatura térmica e mobilidade total.",
+    "location": "SÃO PAULO, BRASIL",
+    "date": "MAR 2024"
+  },
+  {
+    "id": 2,
+    "image": "https://i.postimg.cc/05KmqB6H/savekit-image-acc2cfaddfcbe872.jpg",
+    "title": "RECONHECIMENTO ALFA",
+    "context": "Patrulha de longo alcance em terreno de mata fechada. Equipamento testado sob condições extremas de umidade.",
+    "location": "AMAZÔNIA, BRASIL",
+    "date": "JAN 2024"
+  },
+  {
+    "id": 3,
+    "image": "https://i.postimg.cc/sg7ZZQPB/savekit-image-bca27ef85755749d-2.jpg",
+    "title": "EXTRAÇÃO URBANA",
+    "context": "Simulação de resgate de reféns. Foco em agilidade e proteção modular com o Colete Multi-Mission.",
+    "location": "RIO DE JANEIRO, BRASIL",
+    "date": "FEV 2024"
+  },
+  {
+    "id": 4,
+    "image": "https://i.postimg.cc/x89cHtRm/Whats-App-Image-2026-04-11-at-11-02-35-(1).jpg",
+    "title": "VIGILÂNCIA ESTÁTICA",
+    "context": "Ponto de observação avançado. Conforto térmico essencial para longos períodos de inatividade em climas frios.",
+    "location": "CURITIBA, BRASIL",
+    "date": "JUL 2023"
+  },
+  {
+    "id": 5,
+    "image": "https://i.postimg.cc/fb42s95D/Screenshot-39.png",
+    "title": "TREINAMENTO CQB",
+    "context": "Exercícios de combate em ambientes confinados. A ergonomia do vestuário SUOPES garante que o operador não tenha restrições de movimento.",
+    "location": "CENTRO DE TREINAMENTO TÁTICO",
+    "date": "DEZ 2023"
+  },
+  {
+    "id": 6,
+    "image": "https://i.postimg.cc/PxLZ63sZ/Whats-App-Image-2026-04-10-at-18-42-35.jpg",
+    "title": "MISSÃO DESERTO",
+    "context": "Teste de durabilidade em ambiente árido e abrasivo. Resistência superior contra rasgos e desgaste.",
+    "location": "NORDESTE, BRASIL",
+    "date": "OUT 2023"
+  }
+]

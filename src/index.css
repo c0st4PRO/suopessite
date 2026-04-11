@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-suopes-black: #050505;
+  --color-suopes-gold: #D4AF37;
+  --color-suopes-red: #B22222;
+  --color-suopes-gray: #1A1A1A;
+  --color-suopes-muted: #8E8E8E;
+  --color-suopes-white: #FFFFFF;
+}
+
+@layer base {
+  body {
+    @apply bg-suopes-black text-suopes-white font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tighter uppercase;
+  }
+}
+
+@layer components {
+  .btn-suopes {
+    @apply px-6 py-3 bg-suopes-gold text-suopes-black font-bold uppercase tracking-widest transition-all hover:bg-suopes-red hover:text-suopes-white active:scale-95 disabled:opacity-50;
+  }
+  
+  .btn-outline {
+    @apply px-6 py-3 border border-suopes-gold text-suopes-gold font-bold uppercase tracking-widest transition-all hover:bg-suopes-gold hover:text-suopes-black active:scale-95;
+  }
+
+  .card-suopes {
+    @apply border border-suopes-gray bg-suopes-black/50 backdrop-blur-sm p-4 transition-all hover:border-suopes-gold;
+  }
+}
