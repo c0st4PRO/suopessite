@@ -121,14 +121,31 @@ async function initializeDatabase() {
         description TEXT,
         price DECIMAL(10,2) NOT NULL,
         category VARCHAR(100),
+        sku VARCHAR(100),
         image TEXT,
         images JSON,
         colors JSON,
+        sizes JSON,
+        has_sizes TINYINT(1) DEFAULT 0,
+        features TEXT,
+        care TEXT,
         in_stock TINYINT(1) DEFAULT 1,
         featured TINYINT(1) DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Adicionar colunas novas em bancos existentes (ignora se já existem)
+    const newColumns = [
+      "ALTER TABLE products ADD COLUMN sku VARCHAR(100)",
+      "ALTER TABLE products ADD COLUMN sizes JSON",
+      "ALTER TABLE products ADD COLUMN has_sizes TINYINT(1) DEFAULT 0",
+      "ALTER TABLE products ADD COLUMN features TEXT",
+      "ALTER TABLE products ADD COLUMN care TEXT",
+    ];
+    for (const sql of newColumns) {
+      try { await db.execute(sql); } catch(e) { /* coluna já existe */ }
+    }
 
     // TABELA DE GALERIA PERSISTENTE
     await db.query(`
@@ -517,7 +534,8 @@ async function startServer() {
       const [rows]: any = await db.execute("SELECT * FROM products ORDER BY created_at DESC");
       const mappedProducts = rows.map((p: any) => {
         let images = [p.image, p.image, p.image, p.image];
-        let colors = [];
+        let colors: any[] = [];
+        let sizes: any[] = [];
         
         try {
           if (p.images) images = typeof p.images === 'string' ? JSON.parse(p.images) : p.images;
@@ -527,11 +545,19 @@ async function startServer() {
           if (p.colors) colors = typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors;
         } catch (e) { console.error("Erro parse cores:", e); }
 
+        try {
+          if (p.sizes) sizes = typeof p.sizes === 'string' ? JSON.parse(p.sizes) : p.sizes;
+        } catch (e) { console.error("Erro parse sizes:", e); }
+
         return {
           ...p,
           inStock: p.in_stock === 1,
           images: Array.isArray(images) ? images : [p.image, p.image, p.image, p.image],
           colors: Array.isArray(colors) ? colors : [],
+          sizes: Array.isArray(sizes) ? sizes : [],
+          hasSizes: p.has_sizes === 1,
+          features: p.features || null,
+          care: p.care || null,
           featured: p.featured === 1
         };
       });
@@ -563,16 +589,42 @@ async function startServer() {
   app.put("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
+      
+      const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
+      const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
+      const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
       
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, id]
       );
 
-      res.json({ success: true });
+      // Retorna o produto atualizado para o frontend
+      const [rows]: any = await db.execute("SELECT * FROM products WHERE id = ?", [id]);
+      if (rows.length > 0) {
+        const p = rows[0];
+        let parsedImages = [p.image, p.image, p.image, p.image];
+        let parsedColors: any[] = [];
+        let parsedSizes: any[] = [];
+        try { if (p.images) parsedImages = JSON.parse(p.images); } catch(e) {}
+        try { if (p.colors) parsedColors = JSON.parse(p.colors); } catch(e) {}
+        try { if (p.sizes) parsedSizes = JSON.parse(p.sizes); } catch(e) {}
+        
+        res.json({
+          ...p,
+          inStock: p.in_stock === 1,
+          images: Array.isArray(parsedImages) ? parsedImages : [p.image, p.image, p.image, p.image],
+          colors: Array.isArray(parsedColors) ? parsedColors : [],
+          sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
+          hasSizes: p.has_sizes === 1,
+          featured: p.featured === 1
+        });
+      } else {
+        res.json({ success: true });
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao atualizar produto:", err);
       res.status(500).json({ message: "Erro ao atualizar produto" });
     }
   });
