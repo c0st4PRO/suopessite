@@ -9,8 +9,8 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
-    "start": "NODE_ENV=production node --loader tsx server.ts",
+    "build": "vite build && node node_modules/esbuild/bin/esbuild server.ts --bundle --platform=node --outfile=server.js --format=esm --packages=external --sourcemap",
+    "start": "NODE_ENV=production node server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -42,6 +42,7 @@
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.0",
     "autoprefixer": "^10.4.21",
+    "esbuild": "^0.28.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
