@@ -39,18 +39,23 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
   useEffect(() => {
     let interval: any;
     if (step === "success" && dbOrderId && paymentMethod === "pix" && paymentStatus !== "approved") {
+      console.log(`[POLLING] Iniciando vigilância do pedido ${dbOrderId}...`);
       interval = setInterval(async () => {
         try {
           const res = await fetch(`/api/orders/${dbOrderId}/status`);
           if (res.ok) {
             const data = await res.json();
+            console.log(`[POLLING] Status do pagamento: ${data.paymentStatus}`);
             if (data.paymentStatus === "approved") {
+              console.log("[POLLING] CONFIRMADO! Atualizando tela...");
               setPaymentStatus("approved");
               clearInterval(interval);
             }
+          } else {
+            console.warn(`[POLLING] Servidor respondeu com erro: ${res.status}`);
           }
         } catch (e) {
-          console.error("Erro no polling:", e);
+          console.error("[POLLING] Falha na conexão de rede:", e);
         }
       }, 5000); // Verifica a cada 5 segundos
     }

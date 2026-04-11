@@ -105,6 +105,10 @@ async function initializeDatabase() {
       );
     `);
 
+    const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
+    console.log(`MODO MERCADO PAGO: ${mpActivated ? 'REAL (ATIVADO)' : 'MOCK (SIMULADO)'}`);
+    console.log(`APP_URL: ${process.env.APP_URL || 'NÃO CONFIGURADO (Webhook pode falhar)'}`);
+    
     console.log("Banco de dados MySQL inicializado e tabelas verificadas.");
 
     // Garantir permissão de Administrador para o e-mail solicitado
