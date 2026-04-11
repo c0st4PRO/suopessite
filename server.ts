@@ -659,7 +659,8 @@ async function startServer() {
               description: `SUOPES TACTICAL - Pedido ${orderId}`,
               payment_method_id: "pix",
               external_reference: orderId,
-              payer: { email: payerEmail || userId || "cliente@suopes.com" }
+              payer: { email: payerEmail || userId || "cliente@suopes.com" },
+              notification_url: process.env.APP_URL ? `${process.env.APP_URL}/api/mp/webhook` : undefined
             }
           });
           
@@ -791,18 +792,9 @@ async function startServer() {
       let order = orders[0];
       let currentStatus = order.payment_status;
 
-      // SIMULADOR DE APROVAÇÃO PARA TESTES (MOCK)
-      // Se for um pedido de teste (MOCK) e estiver pendente há mais de 5 segundos, aprova automaticamente
+      // SIMULADOR DE APROVAÇÃO PARA TESTES (MOCK) - REMOVIDO PARA MODO REAL
       if (currentStatus === 'pending' && order.mp_id && order.mp_id.startsWith('MOCK')) {
-        const orderDate = new Date(order.date);
-        const now = new Date();
-        const secondsPassed = (now.getTime() - orderDate.getTime()) / 1000;
-        
-        if (secondsPassed > 5) {
-          console.log(`[SIMULADOR] Auto-aprovando pedido MOCK: ${id}`);
-          await db.execute("UPDATE orders SET payment_status = 'approved', status = 'processando' WHERE id = ?", [id]);
-          currentStatus = 'approved';
-        }
+         // Apenas mantém o status pendente no modo mock se não quisermos simulador
       } else if (currentStatus === 'pending' && order.mp_id && process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI") {
         // Se for um pedido real e tivermos token, tenta verificar no Mercado Pago agora mesmo
         try {
