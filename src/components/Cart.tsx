@@ -94,7 +94,7 @@ export function Cart({ isOpen, onClose, items, onRemove, onUpdateQuantity }: Car
                               <Plus size={12} />
                             </button>
                           </div>
-                          <span className="text-sm font-mono text-suopes-gold">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="text-sm font-mono text-suopes-gold">R$ {(Number(item.price || 0) * item.quantity).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -105,10 +105,11 @@ export function Cart({ isOpen, onClose, items, onRemove, onUpdateQuantity }: Car
 
             {items.length > 0 && (
               <div className="p-6 border-t border-suopes-gray bg-suopes-gray/10">
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-xs font-mono text-suopes-muted">SUBTOTAL</span>
-                  <span className="text-xl font-mono text-suopes-gold">R$ {total.toFixed(2)}</span>
-                </div>
+                <div className="pt-6 border-t border-suopes-gray space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-xs text-suopes-muted uppercase tracking-widest">Subtotal Estimado</span>
+                    <span className="text-xl font-mono text-suopes-gold uppercase tracking-tighter">R$ {Number(total || 0).toFixed(2)}</span>
+                  </div>
                 <button 
                   onClick={() => {
                     onClose();

@@ -418,12 +418,14 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   {product.category} / {product.sku}
                 </span>
                 <div className="flex items-center gap-4 mb-4">
-                  <h1 className="text-4xl md:text-5xl font-black">{product.name}</h1>
+                  <h1 className="text-4xl md:text-5xl font-black">{product.name || "EQUIPAMENTO SEM NOME"}</h1>
                   {!product.inStock && (
                     <span className="bg-suopes-red text-white text-[10px] font-mono px-3 py-1 tracking-widest">ESGOTADO</span>
                   )}
                 </div>
-                <p className="text-2xl font-mono text-suopes-gold">R$ {product.price.toFixed(2)}</p>
+                <p className="text-2xl font-mono text-suopes-gold">
+                  R$ {Number(product.price || 0).toFixed(2)}
+                </p>
               </>
             )}
           </div>
@@ -679,7 +681,7 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                         className="overflow-hidden"
                       >
                         <p className="pt-4 text-xs text-suopes-muted leading-relaxed font-mono uppercase">
-                          {product.description}
+                          {product.description || "NENHUMA DESCRIÇÃO TÉCNICA FORNECIDA PARA ESTE ATIVO."}
                         </p>
                       </motion.div>
                     )}

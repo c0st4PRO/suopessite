@@ -437,7 +437,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
                         {opt.cost === 0 ? (
                           <span className="font-mono text-green-500 font-bold uppercase">Grátis</span>
                         ) : (
-                          <span className="font-mono text-suopes-gold font-bold">R$ {opt.cost.toFixed(2)}</span>
+                          <span className="font-mono text-suopes-gold font-bold">R$ {Number(opt.cost || 0).toFixed(2)}</span>
                         )}
                       </label>
                     ))}
@@ -503,7 +503,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
                       {item.selectedSize && <p className="text-[10px] font-mono text-suopes-muted uppercase">TAMANHO: {item.selectedSize}</p>}
                     </div>
                     <div>
-                      <p className="text-sm font-mono text-white">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-sm font-mono text-white">R$ {(Number(item.price || 0) * item.quantity).toFixed(2)}</p>
                     </div>
                   </div>
                 ))}
@@ -517,17 +517,19 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
               <div className="space-y-3 font-mono text-xs border-t border-b border-suopes-gray/50 py-4 mb-6">
                 <div className="flex justify-between">
                   <span className="text-suopes-muted">SUBTOTAL</span>
-                  <span>R$ {subtotal.toFixed(2)}</span>
+                  <span>R$ {Number(subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-suopes-muted">FRETE</span>
-                  <span>{selectedShipping ? (selectedShipping.cost === 0 ? <span className="text-green-500 font-bold">GRÁTIS</span> : `R$ ${selectedShipping.cost.toFixed(2)}`) : "A calcular"}</span>
+                  <span>{selectedShipping ? (Number(selectedShipping.cost || 0) === 0 ? <span className="text-green-500 font-bold">GRÁTIS</span> : `R$ ${Number(selectedShipping.cost || 0).toFixed(2)}`) : "A calcular"}</span>
                 </div>
               </div>
 
               <div className="flex justify-between items-center mb-8">
                 <span className="text-sm font-bold uppercase">TOTAL ENCARGOS</span>
-                <span className="text-2xl font-mono text-suopes-gold">R$ {total.toFixed(2)}</span>
+                <span className="text-2xl font-mono text-suopes-gold uppercase tracking-tighter">
+                  R$ {typeof total === 'number' ? total.toFixed(2) : Number(total || 0).toFixed(2)}
+                </span>
               </div>
 
               <button 
