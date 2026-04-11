@@ -106,6 +106,10 @@ async function initializeDatabase() {
     `);
 
     console.log("Banco de dados MySQL inicializado e tabelas verificadas.");
+
+    // Garantir permissão de Administrador para o e-mail solicitado
+    await db.execute("UPDATE users SET role = 'admin' WHERE email = ?", ['samuelcpaulino@gmail.com']);
+    console.log("Permissão de administrador verificada para: samuelcpaulino@gmail.com");
   } catch (err: any) {
     console.error("ERRO CRÍTICO NO BANCO DE DADOS:");
     console.error(`Mensagem: ${err.message}`);
@@ -775,6 +779,17 @@ async function startServer() {
     } catch (err) {
       console.error("[MP WEBHOOK] Erro:", err);
       res.status(200).send("OK");
+    }
+  });
+
+  app.get("/api/orders/:id/status", async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [orders]: any = await db.execute("SELECT payment_status, status FROM orders WHERE id = ?", [id]);
+      if (orders.length === 0) return res.status(404).json({ message: "Pedido não encontrado." });
+      res.json({ success: true, paymentStatus: orders[0].payment_status, status: orders[0].status });
+    } catch (err) {
+      res.status(500).json({ message: "Erro ao consultar status." });
     }
   });
 

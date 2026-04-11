@@ -111,7 +111,7 @@ export function ClientOrders({ user }: { user: User | null }) {
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Total</span>
-                      <span className="text-lg font-black text-suopes-gold">R$ {order.total.toFixed(2)}</span>
+                      <span className="text-lg font-black text-suopes-gold">R$ {Number(order.total).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -132,7 +132,7 @@ export function ClientOrders({ user }: { user: User | null }) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs font-mono text-white">R$ {item.price.toFixed(2)}</span>
+                        <span className="text-xs font-mono text-white">R$ {Number(item.price).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}

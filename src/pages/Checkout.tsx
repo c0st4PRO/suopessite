@@ -32,6 +32,30 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
   // Pix QR Response
   const [pixData, setPixData] = useState<{qr_code: string; qr_code_base64: string} | null>(null);
   const [copied, setCopied] = useState(false);
+  const [dbOrderId, setDbOrderId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string>("pending");
+
+  // Polling para verificar pagamento PIX em tempo real
+  useEffect(() => {
+    let interval: any;
+    if (step === "success" && dbOrderId && paymentMethod === "pix" && paymentStatus !== "approved") {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/orders/${dbOrderId}/status`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.paymentStatus === "approved") {
+              setPaymentStatus("approved");
+              clearInterval(interval);
+            }
+          }
+        } catch (e) {
+          console.error("Erro no polling:", e);
+        }
+      }, 5000); // Verifica a cada 5 segundos
+    }
+    return () => clearInterval(interval);
+  }, [step, dbOrderId, paymentMethod, paymentStatus]);
 
   useEffect(() => {
     if (cart.length === 0 && step !== "success") {
@@ -105,6 +129,9 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
           window.location.href = data.redirectUrl;
           return; // Para a execução para não ir para a tela de sucesso local
         }
+        if (data.orderId) {
+          setDbOrderId(data.orderId);
+        }
         if (data.pix) {
           setPixData(data.pix);
         }
@@ -129,52 +156,77 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-xl w-full bg-suopes-black border border-suopes-gray p-10 text-center"
         >
-          <div className="w-20 h-20 bg-suopes-gold/20 flex items-center justify-center rounded-full mx-auto mb-6">
-            <CheckCircle2 size={40} className="text-suopes-gold" />
-          </div>
-          <h1 className="text-2xl font-black mb-2 uppercase">Pedido Confirmado!</h1>
-          <p className="text-suopes-muted font-mono text-sm mb-8">
-            Sua solicitação de suprimento foi registrada.
-          </p>
-
-          {pixData && (
-            <div className="mb-8 p-6 bg-suopes-gray/10 border border-suopes-gold rounded-sm">
-              <h3 className="text-sm font-bold uppercase text-suopes-gold mb-4 flex items-center justify-center gap-2">
-                <QrCode size={18} /> PGTO VIA PIX
-              </h3>
-              <img 
-                src={`data:image/jpeg;base64,${pixData.qr_code_base64}`} 
-                alt="QR Code PIX" 
-                className="w-48 h-48 mx-auto mb-4 border-2 border-white p-2 bg-white"
-              />
-              <p className="text-[10px] font-mono text-suopes-muted mb-2">Pix Copia e Cola:</p>
-              <div className="flex bg-suopes-black border border-suopes-gray p-2">
-                <input 
-                  type="text" 
-                  value={pixData.qr_code} 
-                  readOnly 
-                  className="w-full bg-transparent text-xs text-white outline-none font-mono tracking-tighter"
-                />
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(pixData.qr_code);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className="px-4 text-suopes-gold hover:text-white transition-colors flex-shrink-0"
-                >
-                  {copied ? <Check size={16} /> : <Copy size={16} />}
-                </button>
+          {paymentStatus === "approved" ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="w-20 h-20 bg-green-500/20 flex items-center justify-center rounded-full mx-auto mb-6">
+                <CheckCircle2 size={40} className="text-green-500" />
               </div>
-            </div>
+              <h1 className="text-3xl font-black mb-4 uppercase text-green-500">Pagamento Aprovado!</h1>
+              <div className="bg-suopes-gray/10 border border-suopes-gray p-6 mb-8 rounded-sm">
+                <p className="text-white font-bold mb-2 uppercase">Missão Cumprida!</p>
+                <p className="text-suopes-muted font-mono text-sm">
+                  Recebemos seu pagamento com sucesso. Seu equipamento já está sendo preparado pela nossa logística.
+                  Muito obrigado por confiar na SUOPES TACTICAL!
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <>
+              <div className="w-20 h-20 bg-suopes-gold/20 flex items-center justify-center rounded-full mx-auto mb-6">
+                <CheckCircle2 size={40} className="text-suopes-gold" />
+              </div>
+              <h1 className="text-2xl font-black mb-2 uppercase">Pedido Registrado!</h1>
+              <p className="text-suopes-muted font-mono text-sm mb-8">
+                Sua solicitação de suprimento foi registrada e aguarda confirmação de pagamento.
+              </p>
+
+              {pixData && (
+                <div className="mb-8 p-6 bg-suopes-gray/10 border border-suopes-gold rounded-sm">
+                  <h3 className="text-sm font-bold uppercase text-suopes-gold mb-4 flex items-center justify-center gap-2">
+                    <QrCode size={18} /> PGTO VIA PIX
+                  </h3>
+                  <img 
+                    src={`data:image/jpeg;base64,${pixData.qr_code_base64}`} 
+                    alt="QR Code PIX" 
+                    className="w-48 h-48 mx-auto mb-4 border-2 border-white p-2 bg-white"
+                  />
+                  <p className="text-[10px] font-mono text-suopes-muted mb-2">Pix Copia e Cola:</p>
+                  <div className="flex bg-suopes-black border border-suopes-gray p-2">
+                    <input 
+                      type="text" 
+                      value={pixData.qr_code} 
+                      readOnly 
+                      className="w-full bg-transparent text-xs text-white outline-none font-mono tracking-tighter"
+                    />
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixData.qr_code);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="px-4 text-suopes-gold hover:text-white transition-colors flex-shrink-0"
+                    >
+                      {copied ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  <div className="mt-6 flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 bg-suopes-gold rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest">Aguardando Aprovação Instantânea...</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div className="space-y-4">
             <button onClick={() => navigate("/compras")} className="w-full btn-suopes">
-              ACOMPANHAR PEDIDO
+              VER MEUS PEDIDOS
             </button>
             <button onClick={() => navigate("/")} className="w-full btn-outline">
-              VOLTAR À BASE
+              VOLTAR AO ARSENAL
             </button>
           </div>
         </motion.div>
