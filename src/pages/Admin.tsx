@@ -414,7 +414,13 @@ export function Admin() {
               className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono appearance-none"
             >
               <option value="VESTUÁRIO">VESTUÁRIO</option>
+              <option value="COLETES">COLETES</option>
+              <option value="MOCHILAS">MOCHILAS</option>
+              <option value="JAQUETAS">JAQUETAS</option>
+              <option value="CAMISAS">CAMISAS</option>
+              <option value="PATCHES">PATCHES</option>
               <option value="HEADWEAR">HEADWEAR</option>
+              <option value="ACESSÓRIOS">ACESSÓRIOS</option>
               <option value="EQUIPAMENTO">EQUIPAMENTO</option>
             </select>
           </div>

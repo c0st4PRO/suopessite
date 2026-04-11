@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { Product } from "../types";
-import { ChevronRight, Shield, Target, Zap } from "lucide-react";
+import { ChevronRight, Shield, Target, Zap, Search, SlidersHorizontal } from "lucide-react";
 
 interface HomeProps {
   onAddToCart: (product: Product) => void;
@@ -12,8 +12,9 @@ interface HomeProps {
 export function Home({ onAddToCart }: HomeProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [booting, setBooting] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("TODOS");
 
   useEffect(() => {
     const timer = setTimeout(() => setBooting(false), 2000);
@@ -45,13 +46,23 @@ export function Home({ onAddToCart }: HomeProps) {
     return () => clearInterval(timer);
   }, []);
 
-  const [selectedCategory, setSelectedCategory] = useState("TODOS");
+  const categories = [
+    "TODOS", 
+    "COLETES", 
+    "MOCHILAS", 
+    "JAQUETAS", 
+    "CAMISAS", 
+    "PATCHES", 
+    "HEADWEAR", 
+    "ACESSÓRIOS"
+  ];
 
-  const categories = ["TODOS", "VESTUÁRIO", "HEADWEAR", "EQUIPAMENTO"];
-
-  const filteredProducts = selectedCategory === "TODOS" 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  const filteredProducts = products.filter(p => {
+    const matchesCategory = selectedCategory === "TODOS" || p.category === selectedCategory;
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   if (booting) {
     return (
@@ -175,26 +186,55 @@ export function Home({ onAddToCart }: HomeProps) {
 
       {/* Product Grid */}
       <section id="catalogo" className="max-w-7xl mx-auto px-6 py-20">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-8">
-          <div>
-            <h2 className="text-3xl mb-2">PRODUTOS</h2>
-            <p className="text-suopes-muted text-sm font-mono">EQUIPAMENTO_OPERACIONAL / 2024</p>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-12 gap-8">
+          <div className="w-full lg:w-auto">
+            <h2 className="text-4xl font-black mb-2 tracking-tighter">CATÁLOGO</h2>
+            <p className="text-suopes-muted text-sm font-mono flex items-center gap-2">
+              <SlidersHorizontal size={14} className="text-suopes-gold" /> 
+              SISTEMA_DE_FILTRAGEM / v2.0
+            </p>
           </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 text-[10px] font-mono tracking-widest border transition-all duration-300 ${
-                  selectedCategory === cat
-                    ? "bg-suopes-gold border-suopes-gold text-suopes-black"
-                    : "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+
+          <div className="flex flex-col md:flex-row w-full lg:w-3/4 gap-4 items-center">
+            {/* Tactical Search Bar */}
+            <div className="relative w-full md:max-w-md group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={18} className="text-suopes-muted group-focus-within:text-suopes-gold transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="PROCURAR EQUIPAMENTO..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-suopes-gray/30 border border-suopes-gray py-3 pl-10 pr-4 text-xs font-mono tracking-widest text-suopes-white placeholder:text-suopes-muted/50 focus:outline-none focus:border-suopes-gold focus:ring-1 focus:ring-suopes-gold transition-all"
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none opacity-50">
+                <span className="text-[8px] font-mono border border-suopes-muted px-1 rounded">ESC</span>
+              </div>
+            </div>
+
+            {/* Category Filter Sliders */}
+            <div className="flex flex-wrap gap-2 w-full">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-2 text-[10px] font-mono tracking-widest border transition-all duration-300 relative overflow-hidden group ${
+                    selectedCategory === cat
+                      ? "bg-suopes-gold border-suopes-gold text-suopes-black"
+                      : "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold"
+                  }`}
+                >
+                  {selectedCategory === cat && (
+                    <motion.div 
+                      layoutId="activeCategory"
+                      className="absolute inset-0 bg-suopes-gold -z-10"
+                    />
+                  )}
+                  <span className="relative z-10">{cat}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
