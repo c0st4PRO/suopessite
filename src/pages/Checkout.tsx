@@ -21,6 +21,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
   const [name, setName] = useState(user?.name || "");
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [number, setNumber] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -107,21 +108,32 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
 
   const validateCPF = (cpfValue: string) => {
     const cleanCPF = cpfValue.replace(/\D/g, "");
-    if (cleanCPF.length !== 11 || /^(\d)\1+$/.test(cleanCPF)) return false;
     
+    // Bloqueia se não tiver 11 dígitos ou se for uma sequência de números iguais
+    if (cleanCPF.length !== 11 || /^(.)\1+$/.test(cleanCPF)) {
+      return false;
+    }
+
     let sum = 0;
     let rest;
-    for (let i = 1; i <= 9; i++) sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (11 - i);
+
+    // Validação do primeiro dígito
+    for (let i = 1; i <= 9; i++) {
+      sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (11 - i);
+    }
     rest = (sum * 10) % 11;
     if ((rest === 10) || (rest === 11)) rest = 0;
     if (rest !== parseInt(cleanCPF.substring(9, 10))) return false;
-    
+
+    // Validação do segundo dígito
     sum = 0;
-    for (let i = 1; i <= 10; i++) sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (12 - i);
+    for (let i = 1; i <= 10; i++) {
+      sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (12 - i);
+    }
     rest = (sum * 10) % 11;
     if ((rest === 10) || (rest === 11)) rest = 0;
     if (rest !== parseInt(cleanCPF.substring(10, 11))) return false;
-    
+
     return true;
   };
 
@@ -135,6 +147,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
       const data = await res.json();
       if (!data.erro) {
         setAddress(data.logradouro);
+        setNeighborhood(data.bairro);
         setCity(data.localidade);
         setState(data.uf);
         fetchShipping(cleanCep);
@@ -179,7 +192,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
           cpf: cpf.replace(/\D/g, ""),
           phone: phone.replace(/\D/g, ""),
           items: cart,
-          shippingAddress: { cep, address, number, city, state },
+          shippingAddress: { cep, address, neighborhood, number, city, state },
           paymentMethod,
           shippingCost: selectedShipping.cost,
           totalAmount: total
@@ -397,10 +410,18 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
                   <input 
                     type="text" 
                     required 
+                    placeholder="Bairro" 
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                    className="w-full md:col-span-1 bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+                  />
+                  <input 
+                    type="text" 
+                    required 
                     placeholder="Cidade" 
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full md:col-span-3 bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+                    className="w-full md:col-span-2 bg-suopes-gray/10 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
                   />
                   <input 
                     type="text" 
