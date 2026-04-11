@@ -60,11 +60,11 @@ export function Home({ onAddToCart }: HomeProps) {
 
   const filteredProducts = products.filter(p => {
     if (!p) return false;
-    const category = p.category || "TODOS";
+    const productCategories = (p.category || "").split(",").map(c => c.trim()).filter(Boolean);
     const name = p.name || "S/N";
     const description = p.description || "";
 
-    const matchesCategory = selectedCategory === "TODOS" || category === selectedCategory;
+    const matchesCategory = selectedCategory === "TODOS" || productCategories.includes(selectedCategory);
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;

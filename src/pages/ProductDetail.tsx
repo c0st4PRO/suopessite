@@ -362,13 +362,33 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
               <div className="space-y-4">
                 <div className="flex gap-4">
                   <div className="flex-grow">
-                    <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Categoria</label>
-                    <input 
-                      type="text"
-                      value={editForm.category}
-                      onChange={(e) => setEditForm({...editForm, category: e.target.value})}
-                      className="w-full bg-suopes-black border border-suopes-gray p-2 text-[10px] font-mono text-suopes-gold outline-none focus:border-suopes-gold"
-                    />
+                    <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Categorias</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES", "HEADWEAR", "ACESSÓRIOS", "EQUIPAMENTO", "VESTUÁRIO", "CALÇADOS", "PROTEÇÃO"].map(cat => {
+                        const cats = (editForm.category || "").split(",").map((c: string) => c.trim()).filter(Boolean);
+                        const isSelected = cats.includes(cat);
+                        return (
+                          <button
+                            type="button"
+                            key={cat}
+                            onClick={() => {
+                              if (isSelected) {
+                                setEditForm({...editForm, category: cats.filter((c: string) => c !== cat).join(",")});
+                              } else {
+                                setEditForm({...editForm, category: [...cats, cat].join(",")});
+                              }
+                            }}
+                            className={`px-2 py-0.5 text-[8px] font-mono tracking-widest border transition-all ${
+                              isSelected
+                                ? "bg-suopes-gold border-suopes-gold text-suopes-black font-bold"
+                                : "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="flex-grow">
                     <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">SKU</label>
@@ -414,8 +434,11 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
               </div>
             ) : (
               <>
-                <span className="text-xs font-mono text-suopes-gold tracking-[0.2em] mb-2 block">
-                  {product.category} / {product.sku}
+                <span className="text-xs font-mono text-suopes-gold tracking-[0.2em] mb-2 flex flex-wrap gap-1.5">
+                  {(product.category || "").split(",").map((c: string) => c.trim()).filter(Boolean).map((cat: string, i: number) => (
+                    <span key={i} className="border border-suopes-gold px-2 py-0.5 text-[9px]">{cat}</span>
+                  ))}
+                  <span className="text-suopes-muted">/ {product.sku}</span>
                 </span>
                 <div className="flex items-center gap-4 mb-4">
                   <h1 className="text-4xl md:text-5xl font-black">{product.name || "EQUIPAMENTO SEM NOME"}</h1>

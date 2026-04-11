@@ -407,22 +407,33 @@ export function Admin() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Categoria</label>
-            <select 
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono appearance-none"
-            >
-              <option value="VESTUÁRIO">VESTUÁRIO</option>
-              <option value="COLETES">COLETES</option>
-              <option value="MOCHILAS">MOCHILAS</option>
-              <option value="JAQUETAS">JAQUETAS</option>
-              <option value="CAMISAS">CAMISAS</option>
-              <option value="PATCHES">PATCHES</option>
-              <option value="HEADWEAR">HEADWEAR</option>
-              <option value="ACESSÓRIOS">ACESSÓRIOS</option>
-              <option value="EQUIPAMENTO">EQUIPAMENTO</option>
-            </select>
+            <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Categorias (selecione uma ou mais)</label>
+            <div className="flex flex-wrap gap-2">
+              {["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES", "HEADWEAR", "ACESSÓRIOS", "EQUIPAMENTO", "VESTUÁRIO", "CALÇADOS", "PROTEÇÃO"].map(cat => {
+                const selected = category.split(",").map(c => c.trim()).filter(Boolean).includes(cat);
+                return (
+                  <button
+                    type="button"
+                    key={cat}
+                    onClick={() => {
+                      const cats = category.split(",").map(c => c.trim()).filter(Boolean);
+                      if (selected) {
+                        setCategory(cats.filter(c => c !== cat).join(","));
+                      } else {
+                        setCategory([...cats, cat].join(","));
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-[10px] font-mono tracking-widest border transition-all ${
+                      selected
+                        ? "bg-suopes-gold border-suopes-gold text-suopes-black font-bold"
+                        : "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-2">

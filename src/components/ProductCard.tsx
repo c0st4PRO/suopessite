@@ -24,10 +24,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute top-4 left-4">
-          <span className="bg-suopes-black/80 backdrop-blur-sm px-2 py-1 text-[8px] font-mono tracking-widest border border-suopes-gold text-suopes-gold">
-            {product.category}
-          </span>
+        <div className="absolute top-4 left-4 flex flex-wrap gap-1">
+          {(product.category || "").split(",").map(c => c.trim()).filter(Boolean).map((cat, i) => (
+            <span key={i} className="bg-suopes-black/80 backdrop-blur-sm px-2 py-1 text-[8px] font-mono tracking-widest border border-suopes-gold text-suopes-gold">
+              {cat}
+            </span>
+          ))}
         </div>
         <div className="absolute inset-0 bg-suopes-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button 
