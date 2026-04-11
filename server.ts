@@ -731,7 +731,6 @@ async function startServer() {
         totalAmount, 
         shippingCost || 0,
         JSON.stringify(shippingAddress),
-        JSON.stringify(shippingAddress),
         paymentMethod,
         cpf,
         phone,
