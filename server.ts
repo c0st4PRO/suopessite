@@ -616,8 +616,8 @@ async function startServer() {
     
     // Simulador mock de frete
     const options = [
-      { id: "pac", name: "PAC Correios", cost: 35.00, time: "7 a 10 dias úteis" },
-      { id: "sedex", name: "SEDEX Míssil", cost: 65.00, time: "2 a 3 dias úteis" }
+      { id: "pac", name: "PAC Correios (PROMOÇÃO TESTE)", cost: 0.00, time: "7 a 10 dias úteis" },
+      { id: "sedex", name: "SEDEX Míssil (PROMOÇÃO TESTE)", cost: 0.00, time: "2 a 3 dias úteis" }
     ];
 
     if (totalAmount && totalAmount >= 399) {

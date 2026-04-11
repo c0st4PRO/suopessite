@@ -322,7 +322,7 @@ export function Admin() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-20">
       <div className="mb-12">
-        <h1 className="text-4xl font-black mb-6 uppercase">Quartel General</h1>
+        <h1 className="text-4xl font-black mb-6 uppercase">Menu Administrativo</h1>
         
         <div className="flex border-b border-suopes-gray uppercase text-[10px] font-mono tracking-widest overflow-x-auto">
           <button 
