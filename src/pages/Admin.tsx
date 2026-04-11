@@ -589,7 +589,7 @@ export function Admin() {
                 className="bg-suopes-gray/5 border border-suopes-gray p-4 flex gap-4 group hover:border-suopes-gold transition-colors"
               >
                 <div className="w-20 h-24 bg-suopes-gray flex-shrink-0 overflow-hidden">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                  <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-all" referrerPolicy="no-referrer" />
                 </div>
                 <div className="flex-grow flex flex-col justify-between">
                   <div>

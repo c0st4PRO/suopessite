@@ -54,7 +54,7 @@ export function Cart({ isOpen, onClose, items, onRemove, onUpdateQuantity }: Car
                         <img 
                           src={item.image} 
                           alt={item.name} 
-                          className="w-full h-full object-cover grayscale"
+                          className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
                       </div>

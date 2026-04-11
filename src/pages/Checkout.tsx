@@ -108,34 +108,10 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
 
   const validateCPF = (cpfValue: string) => {
     const cleanCPF = cpfValue.replace(/\D/g, "");
-    
-    // Bloqueia se não tiver 11 dígitos ou se for uma sequência de números iguais
-    if (cleanCPF.length !== 11 || /^(.)\1+$/.test(cleanCPF)) {
-      return false;
-    }
-
-    let sum = 0;
-    let rest;
-
-    // Validação do primeiro dígito
-    for (let i = 1; i <= 9; i++) {
-      sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (11 - i);
-    }
-    rest = (sum * 10) % 11;
-    if ((rest === 10) || (rest === 11)) rest = 0;
-    if (rest !== parseInt(cleanCPF.substring(9, 10))) return false;
-
-    // Validação do segundo dígito
-    sum = 0;
-    for (let i = 1; i <= 10; i++) {
-      sum = sum + parseInt(cleanCPF.substring(i-1, i)) * (12 - i);
-    }
-    rest = (sum * 10) % 11;
-    if ((rest === 10) || (rest === 11)) rest = 0;
-    if (rest !== parseInt(cleanCPF.substring(10, 11))) return false;
-
-    return true;
+    // Agora apenas verifica se tem 11 dígitos, sem travar por cálculo matemático
+    return cleanCPF.length === 11;
   };
+ Jonah
 
   const fetchAddress = async (searchCep: string) => {
     const cleanCep = searchCep.replace(/\D/g, "");
