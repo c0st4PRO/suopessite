@@ -13,8 +13,14 @@ import nodemailer from "nodemailer";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PRODUCTS_FILE = path.join(__dirname, "products.json");
-const GALLERY_FILE = path.join(__dirname, "gallery.json");
+// ZONA SEGURA: Armazenamento persistente fora da pasta de deploy
+const HQ_DATA_DIR = path.resolve(__dirname, "..", "suopes_data_HQ");
+if (!fs.existsSync(HQ_DATA_DIR)) fs.mkdirSync(HQ_DATA_DIR, { recursive: true });
+
+const PRODUCTS_FILE = path.join(HQ_DATA_DIR, "products.json");
+const GALLERY_FILE = path.join(HQ_DATA_DIR, "gallery.json");
+const PERSISTENT_UPLOADS_DIR = path.join(HQ_DATA_DIR, "uploads");
+if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) fs.mkdirSync(PERSISTENT_UPLOADS_DIR, { recursive: true });
 
 // Configuração do Banco de Dados MySQL (Hostinger)
 const db = mysql.createPool({
@@ -107,6 +113,36 @@ async function initializeDatabase() {
       );
     `);
 
+    // TABELA DE PRODUTOS PERSISTENTE
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        category VARCHAR(100),
+        image TEXT,
+        images JSON,
+        colors JSON,
+        in_stock TINYINT(1) DEFAULT 1,
+        featured TINYINT(1) DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // TABELA DE GALERIA PERSISTENTE
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS gallery (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        image TEXT NOT NULL,
+        title VARCHAR(255),
+        context TEXT,
+        location VARCHAR(255),
+        date_string VARCHAR(100),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
     // Migração: Adicionar colunas caso não existam (para sites já em produção)
     try { await db.query("ALTER TABLE orders ADD COLUMN customer_cpf VARCHAR(20)"); } catch (e) {}
@@ -120,6 +156,47 @@ async function initializeDatabase() {
     // Garantir permissão de Administrador para o e-mail solicitado
     await db.execute("UPDATE users SET role = 'admin' WHERE email = ?", ['samuelcpaulino@gmail.com']);
     console.log("Permissão de administrador verificada para: samuelcpaulino@gmail.com");
+
+    // ==========================================
+    // MIGRAÇÃO TÁTICA: JSON -> MYSQL
+    // ==========================================
+    
+    // Migrar Produtos
+    const [existingProducts]: any = await db.execute("SELECT COUNT(*) as count FROM products");
+    if (existingProducts[0].count === 0 && fs.existsSync(PRODUCTS_FILE)) {
+      console.log("[MIGRAÇÃO] Iniciando transferência de produtos para o Banco de Dados...");
+      try {
+        const jsonData = JSON.parse(fs.readFileSync(PRODUCTS_FILE, "utf-8"));
+        for (const p of jsonData) {
+          await db.execute(
+            "INSERT INTO products (id, name, description, price, category, image, images, colors, in_stock, featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [p.id, p.name, p.description, p.price, p.category, p.image, JSON.stringify(p.images || []), JSON.stringify(p.colors || []), p.inStock ? 1 : 0, p.featured ? 1 : 0]
+          );
+        }
+        console.log("[MIGRAÇÃO] Produtos transferidos com sucesso!");
+      } catch (e) {
+        console.error("[MIGRAÇÃO] Erro ao migrar produtos:", e);
+      }
+    }
+
+    // Migrar Galeria
+    const [existingGallery]: any = await db.execute("SELECT COUNT(*) as count FROM gallery");
+    if (existingGallery[0].count === 0 && fs.existsSync(GALLERY_FILE)) {
+      console.log("[MIGRAÇÃO] Iniciando transferência da galeria para o Banco de Dados...");
+      try {
+        const jsonData = JSON.parse(fs.readFileSync(GALLERY_FILE, "utf-8"));
+        for (const g of jsonData) {
+          await db.execute(
+            "INSERT INTO gallery (image, title, context, location, date_string) VALUES (?, ?, ?, ?, ?)",
+            [g.image, g.title, g.context, g.location, g.date]
+          );
+        }
+        console.log("[MIGRAÇÃO] Galeria transferida com sucesso!");
+      } catch (e) {
+        console.error("[MIGRAÇÃO] Erro ao migrar galeria:", e);
+      }
+    }
+
   } catch (err: any) {
     console.error("ERRO CRÍTICO NO BANCO DE DADOS:");
     console.error(`Mensagem: ${err.message}`);
@@ -143,6 +220,7 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
   console.log("Transporter configurado com Gmail real.");
 } else {
+ Jonah
   nodemailer.createTestAccount().then(account => {
     transporter = nodemailer.createTransport({
       host: account.smtp.host,
@@ -160,12 +238,9 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 // Configure Multer for image uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "public", "uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+    cb(null, PERSISTENT_UPLOADS_DIR);
   },
+ Jonah
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
@@ -174,103 +249,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-function readProducts() {
-  try {
-    const data = fs.readFileSync(PRODUCTS_FILE, "utf-8");
-    return JSON.parse(data);
-  } catch (err) {
-    console.error("Error reading products file:", err);
-    return [];
-  }
-}
-
-function saveProducts(products: any) {
-  try {
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
-  } catch (err) {
-    console.error("Error saving products file:", err);
-  }
-}
-
-function readGallery() {
-  try {
-    if (!fs.existsSync(GALLERY_FILE)) {
-      return [
-        {
-          id: 1,
-          image: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?q=80&w=2070&auto=format&fit=crop",
-          title: "OPERAÇÃO SOMBRA",
-          context: "Treinamento de infiltração noturna em ambiente urbano. O uso do Moletom Recce V2 permitiu baixa assinatura térmica e mobilidade total.",
-          location: "SÃO PAULO, BRASIL",
-          date: "MAR 2024"
-        },
-        {
-          id: 2,
-          image: "https://images.unsplash.com/photo-1508197149814-0cc02e8b7f74?q=80&w=1974&auto=format&fit=crop",
-          title: "RECONHECIMENTO ALFA",
-          context: "Patrulha de longo alcance em terreno de mata fechada. Equipamento testado sob condições extremas de umidade.",
-          location: "AMAZÔNIA, BRASIL",
-          date: "JAN 2024"
-        },
-        {
-          id: 3,
-          image: "https://images.unsplash.com/photo-1584386161274-91d1fcb0080c?q=80&w=1974&auto=format&fit=crop",
-          title: "EXTRAÇÃO URBANA",
-          context: "Simulação de resgate de reféns. Foco em agilidade e proteção modular com o Colete Multi-Mission.",
-          location: "RIO DE JANEIRO, BRASIL",
-          date: "FEV 2024"
-        },
-        {
-          id: 4,
-          image: "https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=2070&auto=format&fit=crop",
-          title: "VIGILÂNCIA ESTÁTICA",
-          context: "Ponto de observação avançado. Conforto térmico essencial para longos períodos de inatividade em climas frios.",
-          location: "CURITIBA, BRASIL",
-          date: "JUL 2023"
-        },
-        {
-          id: 5,
-          image: "https://images.unsplash.com/photo-1579803815615-1203fb5a2e9d?q=80&w=2070&auto=format&fit=crop",
-          title: "TREINAMENTO CQB",
-          context: "Exercícios de combate em ambientes confinados. A ergonomia do vestuário SUOPES garante que o operador não tenha restrições de movimento.",
-          location: "CENTRO DE TREINAMENTO TÁTICO",
-          date: "DEZ 2023"
-        },
-        {
-          id: 6,
-          image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1972&auto=format&fit=crop",
-          title: "MISSÃO DESERTO",
-          context: "Teste de durabilidade em ambiente árido e abrasivo. Resistência superior contra rasgos e desgaste.",
-          location: "NORDESTE, BRASIL",
-          date: "OUT 2023"
-        }
-      ];
-    }
-    const data = fs.readFileSync(GALLERY_FILE, "utf-8");
-    return JSON.parse(data);
-  } catch (err) {
-    console.error("Error reading gallery file:", err);
-    return [];
-  }
-}
-
-function saveGallery(items: any) {
-  try {
-    fs.writeFileSync(GALLERY_FILE, JSON.stringify(items, null, 2));
-  } catch (err) {
-    console.error("Error saving gallery file:", err);
-  }
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
-  app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
-
-  // Initial products load
-  let products = readProducts();
+  // REDIRECIONAMENTO DE SEGURANÇA: Servir uploads da Zona Segura (Persistente)
+  app.use("/uploads", express.static(PERSISTENT_UPLOADS_DIR));
 
   // Auth API
   app.post("/api/register", async (req, res) => {
@@ -528,34 +513,53 @@ async function startServer() {
     }
   });
 
-  // Mock API for products
-  app.get("/api/products", (req, res) => {
-    res.json(products);
+  // API PARA PRODUTOS (MYSQL PERSISTENTE)
+  app.get("/api/products", async (req, res) => {
+    try {
+      const [rows]: any = await db.execute("SELECT * FROM products ORDER BY created_at DESC");
+      const mappedProducts = rows.map((p: any) => ({
+        ...p,
+        inStock: p.in_stock === 1,
+        images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
+        colors: typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors,
+        featured: p.featured === 1
+      }));
+      res.json(mappedProducts);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao buscar produtos" });
+    }
   });
 
-  app.post("/api/products", (req, res) => {
-    const newProduct = { 
-      ...req.body, 
-      id: Date.now().toString(),
-      images: [req.body.image, req.body.image, req.body.image, req.body.image],
-      colors: [],
-      inStock: true
-    };
-    products.push(newProduct);
-    saveProducts(products);
-    res.json(newProduct);
+  app.post("/api/products", async (req, res) => {
+    try {
+      const { name, description, price, category, image, featured, inStock } = req.body;
+      const id = Date.now().toString();
+      await db.execute(
+        "INSERT INTO products (id, name, description, price, category, image, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0]
+      );
+      res.json({ id, ...req.body });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao criar produto" });
+    }
   });
 
-  app.put("/api/products/:id", (req, res) => {
-    const { id } = req.params;
-    const updatedProduct = req.body;
-    const index = products.findIndex((p: any) => p.id === id);
-    if (index !== -1) {
-      products[index] = { ...products[index], ...updatedProduct };
-      saveProducts(products);
-      res.json(products[index]);
-    } else {
-      res.status(404).json({ message: "Produto não encontrado" });
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, price, category, image, featured, inStock } = req.body;
+      
+      await db.execute(
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, id]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao atualizar produto" });
     }
   });
 
@@ -567,16 +571,14 @@ async function startServer() {
     res.json({ imageUrl });
   });
 
-  app.delete("/api/products/:id", (req, res) => {
-    const { id } = req.params;
-    const initialLength = products.length;
-    products = products.filter((p: any) => p.id !== id);
-    
-    if (products.length < initialLength) {
-      saveProducts(products);
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("DELETE FROM products WHERE id = ?", [id]);
       res.json({ success: true });
-    } else {
-      res.status(404).json({ message: "Produto não encontrado" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao deletar produto" });
     }
   });
 
@@ -587,37 +589,54 @@ async function startServer() {
   });
 
   // Gallery API
-  let gallery = readGallery();
-
-  app.get("/api/gallery", (req, res) => {
-    res.json(gallery);
-  });
-
-  app.post("/api/gallery", (req, res) => {
-    const newItem = { ...req.body, id: Date.now() };
-    gallery.push(newItem);
-    saveGallery(gallery);
-    res.json(newItem);
-  });
-
-  app.put("/api/gallery/:id", (req, res) => {
-    const { id } = req.params;
-    const updatedItem = req.body;
-    const index = gallery.findIndex((item: any) => item.id.toString() === id);
-    if (index !== -1) {
-      gallery[index] = { ...gallery[index], ...updatedItem };
-      saveGallery(gallery);
-      res.json(gallery[index]);
-    } else {
-      res.status(404).json({ message: "Item não encontrado" });
+  app.get("/api/gallery", async (req, res) => {
+    try {
+      const [rows] = await db.execute("SELECT * FROM gallery ORDER BY id DESC");
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao buscar galeria" });
     }
   });
 
-  app.delete("/api/gallery/:id", (req, res) => {
-    const { id } = req.params;
-    gallery = gallery.filter((item: any) => item.id.toString() !== id);
-    saveGallery(gallery);
-    res.json({ success: true });
+  app.post("/api/gallery", async (req, res) => {
+    try {
+      const { image, title, context, location, date } = req.body;
+      await db.execute(
+        "INSERT INTO gallery (image, title, context, location, date_string) VALUES (?, ?, ?, ?, ?)",
+        [image, title, context, location, date]
+      );
+      res.json({ success: true, ...req.body });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao criar item na galeria" });
+    }
+  });
+
+  app.put("/api/gallery/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { image, title, context, location, date } = req.body;
+      await db.execute(
+        "UPDATE gallery SET image = ?, title = ?, context = ?, location = ?, date_string = ? WHERE id = ?",
+        [image, title, context, location, date, id]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao atualizar item da galeria" });
+    }
+  });
+
+  app.delete("/api/gallery/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("DELETE FROM gallery WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao deletar item da galeria" });
+    }
   });
 
   app.post("/api/shipping", (req, res) => {
