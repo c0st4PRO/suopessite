@@ -1,5 +1,9 @@
 // server.js - Ponto de entrada para produção (Hostinger)
-// Carrega o suporte a TypeScript e inicia o server.ts
-import { register } from 'tsx/esm/api';
-register();
+import { register } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
+// Registra tsx para suportar TypeScript
+register('tsx', pathToFileURL('./'));
+
+// Importa e inicia o servidor
 await import('./server.ts');
