@@ -518,13 +518,13 @@ async function startServer() {
       const mappedProducts = rows.map((p: any) => ({
         ...p,
         inStock: p.in_stock === 1,
-        images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
-        colors: typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors,
+        images: Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images) : [p.image, p.image, p.image, p.image]),
+        colors: Array.isArray(p.colors) ? p.colors : (typeof p.colors === 'string' ? JSON.parse(p.colors) : []),
         featured: p.featured === 1
       }));
       res.json(mappedProducts);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao buscar produtos:", err);
       res.status(500).json({ message: "Erro ao buscar produtos" });
     }
   });
@@ -533,13 +533,16 @@ async function startServer() {
     try {
       const { name, description, price, category, image, featured, inStock } = req.body;
       const id = Date.now().toString();
+      const defaultImages = JSON.stringify([image, image, image, image]);
+      const defaultColors = JSON.stringify([]);
+
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0]
       );
       res.json({ id, ...req.body });
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao criar produto:", err);
       res.status(500).json({ message: "Erro ao criar produto" });
     }
   });
