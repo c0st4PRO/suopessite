@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Camera, Shield, Target, Map, Edit3, Save, X, Plus, Trash2, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "motion/react";
+import { Camera, Shield, Target, Map, Edit3, Save, X, Plus, Trash2, Image as ImageIcon, AlertCircle, GripVertical } from "lucide-react";
 import { User } from "../types";
 
 interface GalleryItem {
@@ -38,6 +38,23 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
       console.error("Error fetching gallery:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReorder = async (newOrder: GalleryItem[]) => {
+    setItems(newOrder);
+    
+    // Auto-save the new order to the backend
+    try {
+      await fetch("/api/gallery/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderedIds: newOrder.map(item => item.id)
+        }),
+      });
+    } catch (err) {
+      console.error("Error saving gallery order:", err);
     }
   };
 
@@ -143,48 +160,30 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
           )}
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {items.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              viewport={{ once: true }}
-              className="group relative"
-            >
-              <div className="relative aspect-[3/4] overflow-hidden border border-suopes-gray bg-suopes-gray/20">
-                <img 
-                  src={item.image} 
-                  alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-suopes-black via-transparent to-transparent opacity-80"></div>
-                
-                <div className="absolute bottom-0 left-0 w-full p-6 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target size={12} className="text-suopes-gold" />
-                    <span className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest">{item.title}</span>
+        {isEditing ? (
+          <Reorder.Group 
+            axis="y" 
+            values={items} 
+            onReorder={handleReorder}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {items.map((item) => (
+              <Reorder.Item
+                key={item.id}
+                value={item}
+                className="group relative cursor-grab active:cursor-grabbing"
+              >
+                <div className="relative aspect-[3/4] overflow-hidden border border-suopes-gold bg-suopes-gray/20">
+                  <div className="absolute top-2 left-2 z-10 bg-suopes-gold p-1 text-suopes-black shadow-lg">
+                    <GripVertical size={16} />
                   </div>
-                  <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">{item.title}</h3>
-                  <p className="text-[10px] font-mono text-suopes-muted leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    {item.context}
-                  </p>
-                </div>
-
-                <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                  <div className="bg-suopes-black/50 backdrop-blur-sm border border-suopes-gray px-2 py-1 flex items-center gap-2">
-                    <Map size={10} className="text-suopes-gold" />
-                    <span className="text-[8px] font-mono text-white uppercase">{item.location}</span>
-                  </div>
-                  <div className="bg-suopes-black/50 backdrop-blur-sm border border-suopes-gray px-2 py-1">
-                    <span className="text-[8px] font-mono text-suopes-gold uppercase">{item.date}</span>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="absolute inset-0 bg-suopes-black/60 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <img 
+                    src={item.image} 
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-suopes-black/60 flex items-center justify-center gap-4">
                     <button 
                       onClick={() => openEditModal(item)}
                       className="p-3 bg-suopes-gold text-suopes-black rounded-full hover:bg-white transition-colors"
@@ -198,11 +197,58 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
                       <Trash2 size={20} />
                     </button>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-[10px] font-mono text-suopes-gold uppercase font-bold truncate bg-suopes-black/60 p-1 inline-block">{item.title}</p>
+                  </div>
+                </div>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {items.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="group relative"
+              >
+                <div className="relative aspect-[3/4] overflow-hidden border border-suopes-gray bg-suopes-gray/20">
+                  <img 
+                    src={item.image} 
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-suopes-black via-transparent to-transparent opacity-80"></div>
+                  
+                  <div className="absolute bottom-0 left-0 w-full p-6 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target size={12} className="text-suopes-gold" />
+                      <span className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest">{item.title}</span>
+                    </div>
+                    <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">{item.title}</h3>
+                    <p className="text-[10px] font-mono text-suopes-muted leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      {item.context}
+                    </p>
+                  </div>
+
+                  <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                    <div className="bg-suopes-black/50 backdrop-blur-sm border border-suopes-gray px-2 py-1 flex items-center gap-2">
+                      <Map size={10} className="text-suopes-gold" />
+                      <span className="text-[8px] font-mono text-white uppercase">{item.location}</span>
+                    </div>
+                    <div className="bg-suopes-black/50 backdrop-blur-sm border border-suopes-gray px-2 py-1">
+                      <span className="text-[8px] font-mono text-suopes-gold uppercase">{item.date}</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}      </div>
 
         <motion.div 
           initial={{ opacity: 0 }}

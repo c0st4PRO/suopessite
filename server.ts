@@ -156,9 +156,13 @@ async function initializeDatabase() {
         context TEXT,
         location VARCHAR(255),
         date_string VARCHAR(100),
+        sort_order INT DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Adicionar sort_order em bancos existentes
+    try { await db.execute("ALTER TABLE gallery ADD COLUMN sort_order INT DEFAULT 0"); } catch(e) { /* já existe */ }
 
     const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
     // Migração: Adicionar colunas caso não existam (para sites já em produção)
@@ -657,11 +661,27 @@ async function startServer() {
   // Gallery API
   app.get("/api/gallery", async (req, res) => {
     try {
-      const [rows] = await db.execute("SELECT * FROM gallery ORDER BY id DESC");
+      const [rows] = await db.execute("SELECT * FROM gallery ORDER BY sort_order ASC, id DESC");
       res.json(rows);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Erro ao buscar galeria" });
+    }
+  });
+
+  // Reorder gallery items
+  app.put("/api/gallery/reorder", async (req, res) => {
+    try {
+      const { orderedIds } = req.body; // array of IDs in the new order
+      if (!Array.isArray(orderedIds)) return res.status(400).json({ message: "orderedIds deve ser um array" });
+      
+      for (let i = 0; i < orderedIds.length; i++) {
+        await db.execute("UPDATE gallery SET sort_order = ? WHERE id = ?", [i, orderedIds[i]]);
+      }
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erro ao reordenar galeria:", err);
+      res.status(500).json({ message: "Erro ao reordenar galeria" });
     }
   });
 
