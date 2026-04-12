@@ -273,6 +273,7 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
             <Target size={24} className="text-suopes-muted" />
           </div>
         </motion.div>
+      </div>
 
       {/* Modal de Edição */}
       <AnimatePresence>
