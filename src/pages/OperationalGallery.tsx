@@ -248,7 +248,7 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
               </motion.div>
             ))}
           </div>
-        )}      </div>
+        )}
 
         <motion.div 
           initial={{ opacity: 0 }}
@@ -273,7 +273,6 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
             <Target size={24} className="text-suopes-muted" />
           </div>
         </motion.div>
-      </div>
 
       {/* Modal de Edição */}
       <AnimatePresence>
