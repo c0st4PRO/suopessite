@@ -174,9 +174,12 @@ async function initializeDatabase() {
     
     console.log("Banco de dados MySQL inicializado e tabelas verificadas.");
 
-    // Garantir permissão de Administrador para o e-mail solicitado
-    await db.execute("UPDATE users SET role = 'admin' WHERE email = ?", ['samuelcpaulino@gmail.com']);
-    console.log("Permissão de administrador verificada para: samuelcpaulino@gmail.com");
+    // Garantir permissão de Administrador para os e-mails solicitados
+    const admins = ['samuelcpaulino@gmail.com', 'habnadabeh@gmail.com'];
+    for (const adminEmail of admins) {
+      await db.execute("UPDATE users SET role = 'admin' WHERE email = ?", [adminEmail]);
+      console.log(`Permissão de administrador verificada para: ${adminEmail}`);
+    }
 
     // ==========================================
     // MIGRAÇÃO TÁTICA: JSON -> MYSQL
@@ -524,7 +527,7 @@ async function startServer() {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.email === 'samuelcpaulino@gmail.com' ? 'admin' : user.role
+        role: ['samuelcpaulino@gmail.com', 'habnadabeh@gmail.com'].includes(user.email) ? 'admin' : user.role
       });
     } catch (err) {
       console.error(err);
