@@ -61,11 +61,11 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
           };
           setProduct(productWithDefaults);
           setEditForm(productWithDefaults);
-          if (productWithDefaults.colors && productWithDefaults.colors.length > 0) {
+          if (productWithDefaults.colors.length > 0) {
             const firstAvailable = productWithDefaults.colors.find((c: ProductColor) => c.inStock);
             setSelectedColor(firstAvailable ? firstAvailable.name : productWithDefaults.colors[0].name);
           }
-          if (productWithDefaults.hasSizes && productWithDefaults.sizes && productWithDefaults.sizes.length > 0) {
+          if (productWithDefaults.hasSizes && productWithDefaults.sizes.length > 0) {
             setSelectedSize(productWithDefaults.sizes[0]);
           }
         }
@@ -237,17 +237,10 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
   const displayProduct = isEditing ? editForm : product;
 
   const currentColor = product.colors?.find(c => c.name === selectedColor);
-  
-  // Lógica de estoque numérico: verifica se o tamanho selecionado tem quantidade > 0
-  const stockQuantity = (currentColor?.sizeStock && selectedSize) ? (currentColor.sizeStock[selectedSize] ?? 0) : 0;
-  const isSizeInStock = product.hasSizes ? stockQuantity > 0 : (currentColor?.inStock !== false);
-  
+  const isSizeInStock = currentColor?.sizeStock ? currentColor.sizeStock[selectedSize] !== false : true;
   const isOutOfStock = !product.inStock || (currentColor?.inStock === false) || (product.hasSizes && !isSizeInStock);
 
-  // Lógica de produtos relacionados: manual (se houver) ou filtrado por categoria
-  const relatedProducts = (product.relatedProducts && product.relatedProducts.length > 0)
-    ? allProducts.filter(p => product.relatedProducts?.includes(p.id))
-    : allProducts.filter(p => p.id !== id && p.category === product.category).slice(0, 4);
+  const relatedProduct = allProducts.find(p => p.id !== id && p.category === product.category) || allProducts.find(p => p.id !== id);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
@@ -609,32 +602,22 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
               <div className="flex flex-wrap gap-3">
                 {product.sizes.map((size) => {
                   const currentColor = product.colors?.find(c => c.name === selectedColor);
-                  const stock = currentColor?.sizeStock ? (currentColor.sizeStock[size] ?? 0) : 0;
-                  const isAvailable = product.inStock && (currentColor?.inStock !== false) && stock > 0;
+                  const isSizeInStock = currentColor?.sizeStock ? currentColor.sizeStock[size] !== false : true;
+                  const isAvailable = product.inStock && (currentColor?.inStock !== false) && isSizeInStock;
 
                   return (
-                    <div key={size} className="flex flex-col items-center gap-2">
                     <button
+                      key={size}
                       onClick={() => setSelectedSize(size)}
                       className={`h-12 min-w-[3rem] px-4 flex items-center justify-center border font-mono text-xs transition-all cursor-pointer ${
                         selectedSize === size 
                           ? (isAvailable ? "bg-suopes-gold border-suopes-gold text-suopes-black font-bold" : "bg-suopes-red/20 border-suopes-red text-suopes-red font-bold")
-                          : (isAvailable ? "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold" : "opacity-30 border-suopes-gray text-suopes-muted cursor-not-allowed")
+                          : (isAvailable ? "border-suopes-gray text-suopes-muted hover:border-suopes-gold hover:text-suopes-gold" : "opacity-50 border-suopes-gray text-suopes-muted hover:border-suopes-red hover:text-suopes-red")
                       }`}
                     >
                       {size}
+                      {!isAvailable && <span className="ml-2 text-[8px]">(OFF)</span>}
                     </button>
-                    {isAvailable && stock <= 3 && (
-                      <span className="text-[7px] font-mono text-suopes-gold animate-pulse">
-                        {stock === 1 ? "ÚLTIMA UNIDADE!" : `${stock} RESTANTES`}
-                      </span>
-                    )}
-                    {!isAvailable && (
-                      <span className="text-[7px] font-mono text-suopes-red uppercase">
-                        Esgotado
-                      </span>
-                    )}
-                    </div>
                   );
                 })}
               </div>
@@ -778,61 +761,6 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                     )}
                   </AnimatePresence>
                 </div>
-
-                {/* Relacionados (Apenas modo edição) */}
-                {isEditing && (
-                  <div className="py-4 border-t border-suopes-gray/30">
-                    <button 
-                      onClick={() => setOpenAccordion(openAccordion === "related" ? null : "related")}
-                      className="w-full flex justify-between items-center text-xs font-bold uppercase tracking-widest text-suopes-gold hover:text-white transition-colors"
-                    >
-                      Gerenciar Relacionados ({editForm.relatedProducts?.length || 0})
-                      <Search size={14} className={`transition-transform duration-300 ${openAccordion === "related" ? "rotate-45" : ""}`} />
-                    </button>
-                    <AnimatePresence>
-                      {openAccordion === "related" && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-4 space-y-4">
-                            <p className="text-[10px] font-mono text-suopes-muted uppercase mb-2">Selecione até 4 produtos para recomendar:</p>
-                            <div className="max-h-60 overflow-y-auto space-y-2 border border-suopes-gray p-2 bg-suopes-black">
-                              {allProducts.filter(p => p.id !== id).map(p => {
-                                const isSelected = editForm.relatedProducts?.includes(p.id);
-                                return (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => {
-                                      const current = editForm.relatedProducts || [];
-                                      const next = isSelected 
-                                        ? current.filter(rid => rid !== p.id) 
-                                        : [...current, p.id].slice(0, 4);
-                                      setEditForm({ ...editForm, relatedProducts: next });
-                                    }}
-                                    className={`w-full flex items-center justify-between p-2 border text-[10px] font-mono transition-all ${
-                                      isSelected 
-                                        ? "border-suopes-gold bg-suopes-gold/10 text-suopes-gold" 
-                                        : "border-suopes-gray/30 text-suopes-muted hover:border-suopes-gray"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <img src={p.image} className="w-8 h-8 object-cover" />
-                                      <span className="text-left uppercase font-bold">{p.name}</span>
-                                    </div>
-                                    {isSelected && <Check size={12} />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -951,40 +879,6 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
         </motion.div>
       </div>
 
-      {/* Related Products Section */}
-      {relatedProducts.length > 0 && (
-        <div className="mt-32 pt-20 border-t border-suopes-gray">
-          <div className="mb-12">
-            <h2 className="text-3xl font-black uppercase tracking-tighter">Você também pode gostar</h2>
-            <p className="text-suopes-muted font-mono text-[10px] uppercase tracking-widest mt-2">Sugestões do nosso Arsenal</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedProducts.map((p) => (
-              <Link 
-                key={p.id} 
-                to={`/product/${p.id}`}
-                className="group flex flex-col gap-4"
-              >
-                <div className="aspect-[4/5] bg-suopes-gray overflow-hidden border border-suopes-gray relative">
-                  <img 
-                    src={p.image} 
-                    alt={p.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-suopes-black/20 group-hover:bg-transparent transition-colors" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-[10px] font-bold uppercase tracking-tight line-clamp-1">{p.name}</h4>
-                  <p className="text-[10px] font-mono text-suopes-gold">R$ {Number(p.price || 0).toFixed(2)}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Image Edit Modal */}
       <AnimatePresence>
         {imageEditIndex !== null && (
@@ -1099,54 +993,31 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                 
                 {editForm?.hasSizes && editForm.sizes && editForm.sizes.length > 0 && (
                   <div>
-                    <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">Quantidade em Estoque por Tamanho</label>
-                    <div className="space-y-3">
+                    <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">Estoque por Tamanho</label>
+                    <div className="grid grid-cols-2 gap-2">
                       {editForm.sizes.map((size) => (
-                        <div key={size} className="flex items-center justify-between gap-4 bg-suopes-gray/5 p-3 border border-suopes-gray">
-                          <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Tamanho {size}</span>
-                          <div className="flex items-center border border-suopes-gray h-8 bg-suopes-black">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const currentStock = tempColor.sizeStock || {};
-                                const qty = Number(currentStock[size] || 0);
-                                setTempColor({
-                                  ...tempColor,
-                                  sizeStock: { ...currentStock, [size]: Math.max(0, qty - 1) }
-                                });
-                              }}
-                              className="px-2 h-full hover:bg-suopes-gray transition-colors text-suopes-gold"
-                            >
-                              <Minus size={12} />
-                            </button>
-                            <input 
-                              type="number"
-                              className="w-12 text-center bg-transparent text-[10px] font-mono font-bold outline-none border-x border-suopes-gray h-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              value={tempColor.sizeStock?.[size] ?? 0}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                setTempColor({
-                                  ...tempColor,
-                                  sizeStock: { ...tempColor.sizeStock, [size]: Math.max(0, val) }
-                                });
-                              }}
-                            />
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const currentStock = tempColor.sizeStock || {};
-                                const qty = Number(currentStock[size] || 0);
-                                setTempColor({
-                                  ...tempColor,
-                                  sizeStock: { ...currentStock, [size]: qty + 1 }
-                                });
-                              }}
-                              className="px-2 h-full hover:bg-suopes-gray transition-colors text-suopes-gold"
-                            >
-                              <Plus size={12} />
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => {
+                            const currentStock = tempColor.sizeStock || {};
+                            setTempColor({
+                              ...tempColor,
+                              sizeStock: {
+                                ...currentStock,
+                                [size]: currentStock[size] === false ? true : false
+                              }
+                            });
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 border text-[10px] font-mono transition-all ${
+                            (tempColor.sizeStock?.[size] !== false)
+                              ? "border-suopes-gold text-suopes-gold bg-suopes-gold/5"
+                              : "border-suopes-red text-suopes-red bg-suopes-red/5"
+                          }`}
+                        >
+                          <span>TAMANHO {size}</span>
+                          <span className="font-bold">{(tempColor.sizeStock?.[size] !== false) ? "EM ESTOQUE" : "ESGOTADO"}</span>
+                        </button>
                       ))}
                     </div>
                   </div>

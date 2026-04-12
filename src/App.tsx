@@ -51,18 +51,7 @@ export default function App() {
         item.selectedColor === product.selectedColor && 
         item.selectedSize === product.selectedSize
       );
-
-      // Encontrar estoque disponível para a variação
-      const currentColor = product.colors?.find(c => c.name === product.selectedColor);
-      const stock = (currentColor?.sizeStock && product.selectedSize) 
-        ? (currentColor.sizeStock[product.selectedSize] ?? 0) 
-        : (product.inStock ? 99 : 0);
-
       if (existing) {
-        if (existing.quantity >= stock) {
-          alert(`Desculpe, temos apenas ${stock} unidades em estoque deste item.`);
-          return prev;
-        }
         return prev.map(item => 
           (item.id === product.id && 
            item.selectedColor === product.selectedColor && 
@@ -85,16 +74,6 @@ export default function App() {
   const updateQuantity = (id: string, delta: number, color?: string, size?: string) => {
     setCart(prev => prev.map(item => {
       if (item.id === id && item.selectedColor === color && item.selectedSize === size) {
-        const currentColor = item.colors?.find(c => c.name === color);
-        const stock = (currentColor?.sizeStock && size) 
-          ? (currentColor.sizeStock[size] ?? 0) 
-          : (item.inStock ? 99 : 0);
-
-        if (delta > 0 && item.quantity >= stock) {
-          alert(`Estoque máximo atingido para esta variação (${stock} unidades).`);
-          return item;
-        }
-
         const newQty = Math.max(1, item.quantity + delta);
         return { ...item, quantity: newQty };
       }
