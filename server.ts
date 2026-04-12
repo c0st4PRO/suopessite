@@ -131,6 +131,7 @@ async function initializeDatabase() {
         care TEXT,
         in_stock TINYINT(1) DEFAULT 1,
         featured TINYINT(1) DEFAULT 0,
+        related_products JSON,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -138,6 +139,7 @@ async function initializeDatabase() {
     // Adicionar colunas novas em bancos existentes (ignora se já existem)
     const newColumns = [
       "ALTER TABLE products ADD COLUMN sku VARCHAR(100)",
+      "ALTER TABLE products ADD COLUMN related_products JSON",
       "ALTER TABLE products ADD COLUMN sizes JSON",
       "ALTER TABLE products ADD COLUMN has_sizes TINYINT(1) DEFAULT 0",
       "ALTER TABLE products ADD COLUMN features TEXT",
@@ -626,14 +628,15 @@ async function startServer() {
 
   app.post("/api/products", async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock } = req.body;
+      const { name, description, price, category, image, featured, inStock, relatedProducts } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
+      const relatedProductsJson = JSON.stringify(relatedProducts || []);
 
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock, related_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0, relatedProductsJson]
       );
       res.json({ id, ...req.body });
     } catch (err) {
@@ -645,27 +648,27 @@ async function startServer() {
   app.put("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, relatedProducts } = req.body;
       
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      const relatedProductsJson = JSON.stringify(relatedProducts || []);
       
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, related_products = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, relatedProductsJson, id]
       );
 
       // Retorna o produto atualizado para o frontend
       const [rows]: any = await db.execute("SELECT * FROM products WHERE id = ?", [id]);
       if (rows.length > 0) {
         const p = rows[0];
-        let parsedImages = [p.image, p.image, p.image, p.image];
-        let parsedColors: any[] = [];
-        let parsedSizes: any[] = [];
+        let parsedRelated: any[] = [];
         try { if (p.images) parsedImages = JSON.parse(p.images); } catch(e) {}
         try { if (p.colors) parsedColors = JSON.parse(p.colors); } catch(e) {}
         try { if (p.sizes) parsedSizes = JSON.parse(p.sizes); } catch(e) {}
+        try { if (p.related_products) parsedRelated = JSON.parse(p.related_products); } catch(e) {}
         
         res.json({
           ...p,
@@ -673,6 +676,7 @@ async function startServer() {
           images: Array.isArray(parsedImages) ? parsedImages : [p.image, p.image, p.image, p.image],
           colors: Array.isArray(parsedColors) ? parsedColors : [],
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
+          relatedProducts: Array.isArray(parsedRelated) ? parsedRelated : [],
           hasSizes: p.has_sizes === 1,
           featured: p.featured === 1
         });

@@ -3,7 +3,7 @@ export interface ProductColor {
   hex: string;
   inStock: boolean;
   imageIndex?: number;
-  sizeStock?: { [size: string]: boolean };
+  sizeStock?: { [size: string]: number }; // Alterado de boolean para number
 }
 
 export interface Product {
@@ -21,6 +21,7 @@ export interface Product {
   hasSizes?: boolean;
   sizes?: string[];
   inStock: boolean;
+  relatedProducts?: string[]; // Novos produtos recomendados manualmente
 }
 
 export interface CartItem extends Product {
