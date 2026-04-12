@@ -61,11 +61,11 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
           };
           setProduct(productWithDefaults);
           setEditForm(productWithDefaults);
-          if (productWithDefaults.colors.length > 0) {
+          if (productWithDefaults.colors && productWithDefaults.colors.length > 0) {
             const firstAvailable = productWithDefaults.colors.find((c: ProductColor) => c.inStock);
             setSelectedColor(firstAvailable ? firstAvailable.name : productWithDefaults.colors[0].name);
           }
-          if (productWithDefaults.hasSizes && productWithDefaults.sizes.length > 0) {
+          if (productWithDefaults.hasSizes && productWithDefaults.sizes && productWithDefaults.sizes.length > 0) {
             setSelectedSize(productWithDefaults.sizes[0]);
           }
         }
@@ -963,7 +963,7 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
             {relatedProducts.map((p) => (
               <Link 
                 key={p.id} 
-                to={`/produto/${p.id}`}
+                to={`/product/${p.id}`}
                 className="group flex flex-col gap-4"
               >
                 <div className="aspect-[4/5] bg-suopes-gray overflow-hidden border border-suopes-gray relative">
