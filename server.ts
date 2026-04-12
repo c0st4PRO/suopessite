@@ -395,6 +395,61 @@ async function startServer() {
     }
   });
 
+  app.post("/api/resend-code", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "E-mail é necessário" });
+
+    try {
+      const [users]: any = await db.execute('SELECT id, verified FROM users WHERE email = ?', [email]);
+      const user = users[0];
+
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      if (user.verified) {
+        return res.status(400).json({ message: "Este usuário já está verificado." });
+      }
+
+      const new_code = Math.floor(100000 + Math.random() * 900000).toString();
+      await db.execute('UPDATE users SET verification_code = ? WHERE id = ?', [new_code, user.id]);
+
+      const logoPath = path.join(__dirname, 'public/suopes-text-logo.png');
+      const attachments = [];
+      if (fs.existsSync(logoPath)) {
+        attachments.push({ filename: 'suopes-text-logo.png', path: logoPath, cid: 'suopeslogo' });
+      }
+
+      const htmlBody = `
+        <div style="background-color: #f4f5f6; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse;">
+            <tr><td align="center" style="background-color: #0d0d0d; padding: 30px 20px;"><img src="cid:suopeslogo" alt="SUOPES TACTICAL" width="280" style="display: block; margin: 0 auto;" /></td></tr>
+            <tr>
+              <td align="center" style="background-color: #fdfdfd; padding: 40px 30px;">
+                <p style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;"> NOVO CÓDIGO DE VERIFICAÇÃO </p>
+                <div style="color: #555555; margin: 0 0 25px 0; font-size: 14px; line-height: 1.6; text-align: center;">Utilize o novo código abaixo para validar sua credencial tática.</div>
+                <div style="background-color: #1a1a1a; color: #ffd700; border: 1px dashed #ffd700; padding: 20px; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;"> ${new_code} </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || 'suopestactical@gmail.com'}>`,
+        to: email,
+        subject: "Novo código de verificação SUOPES",
+        html: htmlBody,
+        attachments
+      });
+
+      res.json({ message: "Novo código enviado com sucesso!" });
+    } catch (err: any) {
+      console.error("Erro ao reenviar código:", err.message);
+      res.status(500).json({ message: "Erro ao reenviar código." });
+    }
+  });
+
   app.post("/api/forgot-password", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "E-mail é necessário" });
