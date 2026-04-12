@@ -1182,25 +1182,21 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/waitlist", async (req, res) => {
+    try {
+      const [rows] = await db.execute("SELECT * FROM waitlist ORDER BY created_at DESC");
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao buscar lista de espera." });
+    }
+  });
+
   app.post("/api/admin/notify-stock", async (req, res) => {
     const { waitlistId, email, productName, details, imageUrl } = req.body;
     
     try {
-      let userSmtp = process.env.SMTP_USER;
-      let passSmtp = process.env.SMTP_PASS;
-      try {
-        const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
-        const smtpUserMatch = envContent.match(/SMTP_USER="([^"]+)"/);
-        const smtpPassMatch = envContent.match(/SMTP_PASS="([^"]+)"/);
-        if (smtpUserMatch) userSmtp = smtpUserMatch[1];
-        if (smtpPassMatch) passSmtp = smtpPassMatch[1];
-      } catch (e) {}
-
-      const dynamicTransporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: userSmtp, pass: passSmtp },
-      });
-
+      // O transporter global já está configurado no topo do arquivo
       const emailSubject = `SUOPES TACTICAL | ESTOQUE RENOVADO: ${productName}`;
       const htmlBody = `
         <div style="background-color: #f4f5f6; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
@@ -1231,16 +1227,22 @@ async function startServer() {
         </div>
       `;
 
-      await dynamicTransporter.sendMail({
-        from: '"SUOPES TACTICAL" <suopestactical@gmail.com>',
+      const logoPath = path.join(__dirname, 'public/suopes-text-logo.png');
+      const attachments = [];
+      if (fs.existsSync(logoPath)) {
+        attachments.push({
+          filename: 'suopes-text-logo.png',
+          path: logoPath,
+          cid: 'suopeslogo'
+        });
+      }
+
+      await transporter.sendMail({
+        from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || 'suopestactical@gmail.com'}>`,
         to: email,
         subject: emailSubject,
         html: htmlBody,
-        attachments: [{
-          filename: 'suopes-text-logo.png',
-          path: path.join(__dirname, 'public/suopes-text-logo.png'),
-          cid: 'suopeslogo'
-        }]
+        attachments
       });
 
       await db.execute("DELETE FROM waitlist WHERE id = ?", [waitlistId]);

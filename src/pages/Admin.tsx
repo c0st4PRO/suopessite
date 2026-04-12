@@ -230,6 +230,27 @@ export function Admin() {
     }
   };
 
+  const handleWhatsAppContact = (phone: string, email: string) => {
+    if (!phone) {
+      alert("Este contato não possui número de WhatsApp cadastrado.");
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    const message = encodeURIComponent(`Olá! Sou da equipe SUOPES Tactical. Vi que você se inscreveu em nossa newsletter. Temos novidades exclusivas no arsenal! Deseja conferir?`);
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
+  };
+
+  const handleWhatsAppNotify = (item: any) => {
+    if (!item.phone) {
+      alert("Este cliente não cadastrou telefone para aviso via WhatsApp.");
+      return;
+    }
+    const cleanPhone = item.phone.replace(/\D/g, "");
+    const productUrl = `${window.location.origin}/produto/${item.product_id}`;
+    const message = encodeURIComponent(`Olá! Você solicitou um aviso na SUOPES Tactical sobre o produto *${item.product_name.toUpperCase()}*.\n\nBOAS NOTÍCIAS: Ele acaba de retornar ao nosso arsenal e já está disponível para envio imediato!\n\nConfira agora no link abaixo:\n${productUrl}\n\nQAP?`);
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
+  };
+
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -761,7 +782,16 @@ export function Admin() {
                     {subscribers.map((sub, i) => (
                       <tr key={i} className="border-t border-suopes-gray/50 hover:bg-suopes-gray/10">
                         <td className="p-4">{sub.email}</td>
-                        <td className="p-4 text-suopes-gold">{sub.phone || "--"}</td>
+                        <td className="p-4 text-suopes-gold">
+                          {sub.phone ? (
+                            <button 
+                              onClick={() => handleWhatsAppContact(sub.phone, sub.email)}
+                              className="flex items-center gap-1 hover:text-white transition-colors"
+                            >
+                              <span className="text-[14px]">📱</span> {sub.phone}
+                            </button>
+                          ) : "--"}
+                        </td>
                         <td className="p-4 text-suopes-muted">{new Date(sub.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
@@ -1025,12 +1055,22 @@ export function Admin() {
                       {item.phone && <p className="text-[10px] text-suopes-gold mt-1">WPP: {item.phone}</p>}
                     </td>
                     <td className="p-4">
-                      <button 
-                        onClick={() => handleNotifyStock(item)}
-                        className="btn-suopes px-4 py-2 text-[10px]"
-                      >
-                        [ NOTIFICAR ]
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button 
+                          onClick={() => handleNotifyStock(item)}
+                          className="btn-suopes px-4 py-2 text-[9px] w-full"
+                        >
+                          [ E-MAIL ]
+                        </button>
+                        {item.phone && (
+                          <button 
+                            onClick={() => handleWhatsAppNotify(item)}
+                            className="w-full px-4 py-2 text-[9px] font-mono font-bold uppercase tracking-widest bg-green-600/20 text-green-400 border border-green-600/30 hover:bg-green-600 hover:text-white transition-all"
+                          >
+                            [ WHATSAPP ]
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
