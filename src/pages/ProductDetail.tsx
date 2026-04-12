@@ -177,11 +177,12 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: product?.id,
           sku: product?.sku,
           name: product?.name,
           email: notifyEmail,
           phone: notifyPhone,
-          details: `COR: ${selectedColor || 'N/A'} | TAMANHO: ${selectedSize || 'N/A'} | Ciente: ${notifyName}`
+          details: `COR: ${selectedColor || 'N/A'} | TAMANHO: ${selectedSize || 'N/A'} | Solicitante: ${notifyName}`
         }),
       });
 

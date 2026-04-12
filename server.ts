@@ -652,10 +652,9 @@ async function startServer() {
     }
   });
 
+  // Redirecionamento legado para o novo sistema de lista de espera
   app.post("/api/notify", (req, res) => {
-    const { productId, productName, color, name, email } = req.body;
-    console.log(`Notification request for ${productName} (${color}) from ${name} <${email}>`);
-    res.json({ success: true });
+    res.redirect(307, "/api/waitlist");
   });
 
   // Gallery API
@@ -1097,11 +1096,20 @@ async function startServer() {
   });
 
   app.post("/api/waitlist", async (req, res) => {
-    const { sku, name, email, phone, details } = req.body;
-    if (!sku || !name || !email) return res.status(400).json({ message: "Dados incompletos." });
+    const { id, sku, name, email, phone, details } = req.body;
+    
+    // Identificador primário é o SKU, mas usamos o ID como redundância
+    const productIdentifier = sku || id;
+    
+    if (!productIdentifier || !name || !email) {
+      return res.status(400).json({ message: "Dados incompletos (ID/SKU, Nome e E-mail são obrigatórios)." });
+    }
     try {
       // Registrar na Fila
-      await db.execute("INSERT INTO waitlist (product_id, product_name, email, phone, details) VALUES (?, ?, ?, ?, ?)", [sku, name, email, phone || null, details || null]);
+      await db.execute(
+        "INSERT INTO waitlist (product_id, product_name, email, phone, details) VALUES (?, ?, ?, ?, ?)", 
+        [productIdentifier, name, email, phone || null, details || null]
+      );
       // Auto-inscrever no Broadcast (MySQL Ignore)
       await db.execute("INSERT IGNORE INTO newsletter_subscribers (email, phone) VALUES (?, ?)", [email, phone || null]);
       
