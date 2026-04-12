@@ -232,17 +232,23 @@ async function initializeDatabase() {
 // Chamar inicialização
 initializeDatabase();
 
+// Configuração do Transportador de E-mail (SMTP)
 let transporter: nodemailer.Transporter;
 
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // true para porta 465, false para outras portas
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    tls: {
+      rejectUnauthorized: false // Ajuda em ambientes de hospedagem restritos
+    }
   });
-  console.log("Transporter configurado com Gmail real.");
+  console.log("Transporter SMTP configurado para Gmail.");
 } else {
   nodemailer.createTestAccount().then(account => {
     transporter = nodemailer.createTransport({
@@ -255,7 +261,7 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       },
     });
     console.log("Ethereal test account ready. Check emails at https://ethereal.email");
-  }).catch(err => console.error("Failed to create Ethereal account:", err));
+  }).catch(err => console.error("Falha ao criar conta de teste SMTP:", err));
 }
 
 // Configure Multer for image uploads
@@ -301,22 +307,17 @@ async function startServer() {
         VALUES (?, ?, ?, ?, ?, 'user', 0)
       `, [id, name, email, password_hash, verification_code]);
 
-      // Transporter Dinâmico (Simplificado para usar variáveis de ambiente ou arquivo)
-      let userSmtp = process.env.SMTP_USER;
-      let passSmtp = process.env.SMTP_PASS;
+      // O transporter global já está configurado com as credenciais do .env
+      const logoPath = path.join(__dirname, 'public/suopes-text-logo.png');
+      const attachments = [];
       
-      try {
-        const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
-        const smtpUserMatch = envContent.match(/SMTP_USER="([^"]+)"/);
-        const smtpPassMatch = envContent.match(/SMTP_PASS="([^"]+)"/);
-        if (smtpUserMatch) userSmtp = smtpUserMatch[1];
-        if (smtpPassMatch) passSmtp = smtpPassMatch[1];
-      } catch (e) {}
-
-      const dynamicTransporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: userSmtp, pass: passSmtp },
-      });
+      if (fs.existsSync(logoPath)) {
+        attachments.push({
+          filename: 'suopes-text-logo.png',
+          path: logoPath,
+          cid: 'suopeslogo'
+        });
+      }
 
       const htmlBody = `
         <div style="background-color: #f4f5f6; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
@@ -349,19 +350,19 @@ async function startServer() {
       `;
 
       try {
-        await dynamicTransporter.sendMail({
-          from: '"SUOPES TACTICAL" <suopestactical@gmail.com>',
+        await transporter.sendMail({
+          from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || 'suopestactical@gmail.com'}>`,
           to: email,
           subject: "Seu código de verificação SUOPES",
           html: htmlBody,
-          attachments: [{
-            filename: 'suopes-text-logo.png',
-            path: path.join(__dirname, 'public/suopes-text-logo.png'),
-            cid: 'suopeslogo'
-          }]
+          attachments
         });
-      } catch (e) {
-        console.error("Erro ao enviar email de verificacao:", e);
+        console.log(`Código de verificação enviado para: ${email}`);
+      } catch (e: any) {
+        console.error("ERRO CRÍTICO AO ENVIAR E-MAIL DE VERIFICAÇÃO:", e.message);
+        if (e.code === 'EAUTH') {
+          console.error("Dica: Verifique se a 'Senha de Aplicativo' no Gmail ainda é válida.");
+        }
       }
 
       res.status(201).json({ message: "Usuário criado. Verifique seu e-mail.", email });
@@ -410,20 +411,16 @@ async function startServer() {
 
       await db.execute('UPDATE users SET reset_code = ?, reset_expires = ? WHERE id = ?', [reset_code, expires, user.id]);
 
-      let userSmtp = process.env.SMTP_USER;
-      let passSmtp = process.env.SMTP_PASS;
-      try {
-        const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
-        const smtpUserMatch = envContent.match(/SMTP_USER="([^"]+)"/);
-        const smtpPassMatch = envContent.match(/SMTP_PASS="([^"]+)"/);
-        if (smtpUserMatch) userSmtp = smtpUserMatch[1];
-        if (smtpPassMatch) passSmtp = smtpPassMatch[1];
-      } catch (e) {}
-
-      const dynamicTransporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: userSmtp, pass: passSmtp },
-      });
+      const logoPath = path.join(__dirname, 'public/suopes-text-logo.png');
+      const attachments = [];
+      
+      if (fs.existsSync(logoPath)) {
+        attachments.push({
+          filename: 'suopes-text-logo.png',
+          path: logoPath,
+          cid: 'suopeslogo'
+        });
+      }
 
       const htmlBody = `
         <div style="background-color: #f4f5f6; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
@@ -456,19 +453,16 @@ async function startServer() {
       `;
 
       try {
-        await dynamicTransporter.sendMail({
-          from: '"SUOPES TACTICAL" <suopestactical@gmail.com>',
+        await transporter.sendMail({
+          from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || 'suopestactical@gmail.com'}>`,
           to: email,
           subject: "Recuperação de Acesso SUOPES",
           html: htmlBody,
-          attachments: [{
-            filename: 'suopes-text-logo.png',
-            path: path.join(__dirname, 'public/suopes-text-logo.png'),
-            cid: 'suopeslogo'
-          }]
+          attachments
         });
-      } catch (e) {
-        console.error("Erro ao enviar email de recuperacao:", e);
+        console.log(`E-mail de recuperação enviado para: ${email}`);
+      } catch (e: any) {
+        console.error("ERRO CRÍTICO AO ENVIAR E-MAIL DE RECUPERAÇÃO:", e.message);
       }
 
       res.json({ message: "Se o e-mail existir, um código foi enviado." });
