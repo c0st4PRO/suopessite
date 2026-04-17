@@ -18,17 +18,38 @@ interface Message {
 
 export default function Assistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Olá! Sou a inteligência artificial da SUOPES. Estou aqui para te ajudar a encontrar produtos, verificar especificações e te dar recomendações. Como posso ajudar?',
-      timestamp: Date.now()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [catalog, setCatalog] = useState<Product[]>([]);
+
+  // Carregar histórico da sessão atual da aba
+  useEffect(() => {
+    const saved = sessionStorage.getItem('suopes_chat_history');
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch (e) {
+        console.error('Erro history:', e);
+      }
+    } else {
+      setMessages([
+        {
+          role: 'assistant',
+          content: 'Olá! Sou a inteligência artificial da SUOPES. Estou aqui para te ajudar a encontrar produtos, verificar especificações e te dar recomendações. Como posso ajudar?',
+          timestamp: Date.now()
+        }
+      ]);
+    }
+  }, []);
+
+  // Salvar histórico sempre que atualizar
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem('suopes_chat_history', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     fetch('/api/products')
@@ -123,6 +144,9 @@ export default function Assistant() {
     let cleanContent = content.replace(/\*\*(\[PRODUTO:[^\]]+\])\*\*/g, "$1");
     // Também com links
     cleanContent = cleanContent.replace(/\*\*(\[[^\]]+\]\([^)]+\))\*\*/g, "$1");
+    
+    // Remover asteriscos soltos perdidos na frase
+    cleanContent = cleanContent.replace(/(^|\n|\s)\*(\s|$)/g, " ");
 
     const regex = /(\[PRODUTO:([^\]]+)\])|\[([^\]]+)\]\(([^)]+)\)|(\*\*.*?\*\*)/g;
     
