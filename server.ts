@@ -839,7 +839,7 @@ async function startServer() {
     try {
       const context = await getAssistantContext();
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         systemInstruction: `Você é o ASSISTENTE SUOPES, um operador de suporte tático de elite para a loja SUOPES TACTICAL.
         Sua missão é ajudar os clientes a escolherem os melhores equipamentos, explicar detalhes técnicos e tirar dúvidas sobre a loja.
         
