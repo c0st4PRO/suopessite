@@ -12,6 +12,9 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jwt from "jsonwebtoken";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var HQ_DATA_DIR = path.resolve(__dirname, "..", "suopes_data_HQ");
@@ -312,16 +315,80 @@ var storage = multer.diskStorage({
   },
   filename: function(req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const cleanExt = path.extname(file.originalname).replace(/[^.a-zA-Z0-9]/g, "");
+    cb(null, uniqueSuffix + cleanExt);
   }
 });
-var upload = multer({ storage });
+var fileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Tipo de arquivo inv\xE1lido. Apenas JPEG, PNG, WEBP e GIF s\xE3o permitidos."), false);
+  }
+};
+var upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // 5MB limit
+  fileFilter
+});
 async function startServer() {
   const app = express();
   const PORT = 3e3;
-  app.use(express.json());
-  app.use("/uploads", express.static(PERSISTENT_UPLOADS_DIR));
-  app.post("/api/register", async (req, res) => {
+  app.use(express.json({ limit: "1mb" }));
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1e3,
+    // 15 minutes
+    max: 1e3,
+    // limit each IP to 1000 requests per windowMs
+    message: { message: "Muitas requisi\xE7\xF5es deste IP, tente novamente em 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false
+  });
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1e3,
+    // 15 minutos
+    max: 15,
+    // max 15 tentativas de auth/recuperação por janela
+    message: { message: "Muitas tentativas de autentica\xE7\xE3o detectadas. Aguarde 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false
+  });
+  app.use(globalLimiter);
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://http2.mlstatic.com", "https://sdk.mercadopago.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https://picsum.photos", "https://http2.mlstatic.com"],
+        connectSrc: ["'self'", "https://api.mercadopago.com", "https://generativelanguage.googleapis.com"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"]
+        // Substitui o X-Frame-Options para browsers modernos garantindo que não soframos clickjacking
+      }
+    },
+    crossOriginEmbedderPolicy: false
+  }));
+  app.use((req, res, next) => {
+    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=(self)");
+    res.removeHeader("X-Powered-By");
+    next();
+  });
+  app.use(cors({
+    origin: process.env.APP_URL || "*",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true
+  }));
+  app.use("/uploads", express.static(PERSISTENT_UPLOADS_DIR, {
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    }
+  }));
+  app.post("/api/register", authLimiter, async (req, res) => {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ message: "Todos os campos s\xE3o obrigat\xF3rios" });
@@ -397,7 +464,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro interno no servidor" });
     }
   });
-  app.post("/api/verify", async (req, res) => {
+  app.post("/api/verify", authLimiter, async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ message: "E-mail e c\xF3digo s\xE3o necess\xE1rios" });
     try {
@@ -417,7 +484,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao verificar e-mail" });
     }
   });
-  app.post("/api/resend-code", async (req, res) => {
+  app.post("/api/resend-code", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "E-mail \xE9 necess\xE1rio" });
     try {
@@ -463,7 +530,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao reenviar c\xF3digo." });
     }
   });
-  app.post("/api/forgot-password", async (req, res) => {
+  app.post("/api/forgot-password", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "E-mail \xE9 necess\xE1rio" });
     try {
@@ -531,7 +598,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro interno no servidor" });
     }
   });
-  app.post("/api/reset-password", async (req, res) => {
+  app.post("/api/reset-password", authLimiter, async (req, res) => {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) return res.status(400).json({ message: "Preencha todos os campos" });
     try {
@@ -551,7 +618,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro interno no servidor" });
     }
   });
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: "E-mail e senha s\xE3o obrigat\xF3rios" });
     try {
@@ -623,15 +690,18 @@ async function startServer() {
   });
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
+      const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      let autoCategory = category ? category.split(",")[0].substring(0, 3).toUpperCase() : "GER";
+      const autoSku = sku && sku.trim() !== "" ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
       );
-      res.json({ id, ...req.body });
+      res.json({ id, sku: autoSku, ...req.body });
     } catch (err) {
       console.error("Erro ao criar produto:", err);
       res.status(500).json({ message: "Erro ao criar produto" });
@@ -640,13 +710,13 @@ async function startServer() {
   app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku } = req.body;
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
       );
       const [rows] = await db.execute("SELECT * FROM products WHERE id = ?", [id]);
       if (rows.length > 0) {
@@ -1030,8 +1100,8 @@ async function startServer() {
       res.status(500).json({ message: `Erro ao consultar: ${err.message}` });
     }
   });
-  app.get("/api/orders", async (req, res) => {
-    const userId = req.query.userId;
+  app.get("/api/orders", authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     if (!userId) return res.status(401).json({ message: "N\xE3o autenticado" });
     try {
       const [orders] = await db.execute("SELECT * FROM orders WHERE user_id = ? ORDER BY date DESC", [userId]);

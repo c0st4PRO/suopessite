@@ -782,18 +782,19 @@ async function startServer() {
 
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock, sku } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
+      const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
       
       // Auto-generador de SKU: Prefixo fixo + Primeiras 3 letras da Categoria + Digitos Aleatórios
       let autoCategory = category ? category.split(',')[0].substring(0, 3).toUpperCase() : 'GER';
       const autoSku = sku && sku.trim() !== '' ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
 
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
       );
       res.json({ id, sku: autoSku, ...req.body });
     } catch (err) {
@@ -805,15 +806,15 @@ async function startServer() {
   app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku } = req.body;
       
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
       
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
       );
 
       // Retorna o produto atualizado para o frontend

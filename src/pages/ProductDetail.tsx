@@ -78,7 +78,10 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
       try {
         const response = await fetch(`/api/products/${id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            ...(user?.token ? { "Authorization": `Bearer ${user.token}` } : {})
+          },
           body: JSON.stringify(editForm),
         });
 
@@ -88,8 +91,12 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
           setIsEditing(false);
           console.log("Product updated successfully:", updated);
         } else {
-          console.error("Failed to update product");
-          alert("Erro ao salvar as alterações no servidor.");
+          try {
+            const data = await response.json();
+            alert(`Erro do Servidor: ${data.message || 'Desconhecido'}`);
+          } catch(e) {
+            alert("Erro ao salvar as alterações no servidor.");
+          }
         }
       } catch (err) {
         console.error("Error updating product:", err);
