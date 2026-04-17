@@ -77,9 +77,11 @@ export default function Assistant() {
         })
       });
 
-      if (!response.ok) throw new Error('Falha na comunicação tática');
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Falha desconhecida na comunicação tática');
+      }
       
       const assistantMessage: Message = {
         role: 'assistant',
@@ -88,11 +90,11 @@ export default function Assistant() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no assistente:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Desculpe operador, houve uma falha na comunicação tática. Tente novamente em instantes.',
+        content: `**SYSTEM ERROR:** ${error.message}`,
         timestamp: Date.now()
       }]);
     } finally {
