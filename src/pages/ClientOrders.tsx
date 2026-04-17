@@ -41,7 +41,9 @@ export function ClientOrders({ user }: { user: User | null }) {
     const loadOrders = async () => {
       if (!user) return;
       try {
-        const res = await fetch(`/api/orders?userId=${user.id}`);
+        const res = await fetch(`/api/orders`, {
+          headers: { "Authorization": `Bearer ${user?.token}` }
+        });
         const data = await res.json();
         setOrders(data);
         setLoading(false);

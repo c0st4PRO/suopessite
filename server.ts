@@ -11,6 +11,9 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jwt from "jsonwebtoken";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -343,29 +346,78 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   }).catch(err => console.error("Falha ao criar conta de teste SMTP:", err));
 }
 
-// Configure Multer for image uploads
+// Configure Multer for secure image uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, PERSISTENT_UPLOADS_DIR);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Remover caracteres perigosos do nome e usar extensão original limpa
+    const cleanExt = path.extname(file.originalname).replace(/[^.a-zA-Z0-9]/g, '');
+    cb(null, uniqueSuffix + cleanExt);
   }
 });
 
-const upload = multer({ storage: storage });
+const fileFilter = (req: any, file: any, cb: any) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Tipo de arquivo inválido. Apenas JPEG, PNG, WEBP e GIF são permitidos."), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: fileFilter
+});
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" })); // Limitação de payload contra DoS
+
+  // Rate Limiting Configs
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000, // limit each IP to 1000 requests per windowMs
+    message: { message: "Muitas requisições deste IP, tente novamente em 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 15, // max 15 tentativas de auth/recuperação por janela
+    message: { message: "Muitas tentativas de autenticação detectadas. Aguarde 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Security Middlewares Hardening
+  app.use(globalLimiter);
+  app.use(helmet({
+    contentSecurityPolicy: false, // Pode quebrar recursos React no modo dev e algumas integrações CDN, ajustado com cuidado em prod
+    crossOriginEmbedderPolicy: false
+  }));
+  app.use(cors({
+    origin: process.env.APP_URL || "*",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true
+  }));
+
   // REDIRECIONAMENTO DE SEGURANÇA: Servir uploads da Zona Segura (Persistente)
-  app.use("/uploads", express.static(PERSISTENT_UPLOADS_DIR));
+  app.use("/uploads", express.static(PERSISTENT_UPLOADS_DIR, {
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    }
+  }));
 
   // Auth API
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", authLimiter, async (req, res) => {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ message: "Todos os campos são obrigatórios" });
@@ -451,7 +503,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/verify", async (req, res) => {
+  app.post("/api/verify", authLimiter, async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ message: "E-mail e código são necessários" });
     
@@ -474,7 +526,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/resend-code", async (req, res) => {
+  app.post("/api/resend-code", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "E-mail é necessário" });
 
@@ -529,7 +581,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/forgot-password", async (req, res) => {
+  app.post("/api/forgot-password", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "E-mail é necessário" });
 
@@ -606,7 +658,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/reset-password", async (req, res) => {
+  app.post("/api/reset-password", authLimiter, async (req, res) => {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) return res.status(400).json({ message: "Preencha todos os campos" });
 
@@ -631,7 +683,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: "E-mail e senha são obrigatórios" });
 
@@ -1206,8 +1258,8 @@ async function startServer() {
   });
 
 
-  app.get("/api/orders", async (req, res) => {
-    const userId = req.query.userId;
+  app.get("/api/orders", authenticateToken, async (req: any, res: any) => {
+    const userId = req.user.id;
     if (!userId) return res.status(401).json({ message: "Não autenticado" });
 
     try {
