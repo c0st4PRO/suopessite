@@ -82,9 +82,15 @@ export default function Assistant() {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error('Erro no assistente:', error);
+      
+      let friendlyMessage = "Nossas linhas de comunicação estão sobrecarregadas no momento. Por favor, tente enviar sua mensagem novamente em alguns instantes.";
+      if (error.message.includes("503") || error.message.includes("fetch")) {
+        friendlyMessage = "Nossos sistemas de inteligência artificial estão enfrentando alta demanda agora. Por favor, tente enviar novamente.";
+      }
+      
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `**SYSTEM ERROR:** ${error.message}`,
+        content: friendlyMessage,
         timestamp: Date.now()
       }]);
     } finally {
@@ -93,11 +99,11 @@ export default function Assistant() {
   };
 
   const InlineProductCard = ({ id }: { id: string }) => {
-    const product = catalog.find(p => p.id === id);
-    if (!product) return <span className="text-suopes-red font-mono text-[9px] block my-1 animate-pulse">[Localizando produto no arsenal...]</span>;
+    const product = catalog.find(p => p.id === String(id).trim());
+    if (!product) return null; // Retorna null para simplesmente ignorar se a IA errar o ID em vez de piscar erro.
 
     return (
-      <Link to={`/product/${product.id}`} className="mt-3 mb-1 block w-full border border-suopes-gold/40 bg-black/60 rounded-xl overflow-hidden hover:border-suopes-gold transition-colors flex items-center group cursor-pointer shadow-lg">
+      <Link to={`/product/${product.id}`} className="mt-3 mb-2 block w-full border border-suopes-gold/40 bg-black/60 rounded-xl overflow-hidden hover:border-suopes-gold transition-colors flex items-center group cursor-pointer shadow-lg decoration-transparent">
         <div className="w-16 h-16 bg-suopes-gray flex-shrink-0 overflow-hidden relative">
           <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
         </div>
@@ -113,15 +119,20 @@ export default function Assistant() {
   };
 
   const formatMessage = (content: string) => {
+    // Primeiro removemos instâncias em que a IA colocou o produto dentro de negrito para evitar conflito de regex
+    let cleanContent = content.replace(/\*\*(\[PRODUTO:[^\]]+\])\*\*/g, "$1");
+    // Também com links
+    cleanContent = cleanContent.replace(/\*\*(\[[^\]]+\]\([^)]+\))\*\*/g, "$1");
+
     const regex = /(\[PRODUTO:([^\]]+)\])|\[([^\]]+)\]\(([^)]+)\)|(\*\*.*?\*\*)/g;
     
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
     
     let match;
-    while ((match = regex.exec(content)) !== null) {
+    while ((match = regex.exec(cleanContent)) !== null) {
       if (match.index > lastIndex) {
-        elements.push(<span key={lastIndex}>{content.substring(lastIndex, match.index)}</span>);
+        elements.push(<span key={lastIndex}>{cleanContent.substring(lastIndex, match.index)}</span>);
       }
       
       if (match[1]) {
@@ -134,7 +145,7 @@ export default function Assistant() {
             href={match[4]} 
             target={isExternal ? "_blank" : "_self"} 
             rel={isExternal ? "noopener noreferrer" : undefined}
-            className="inline-block mt-2 mb-1 bg-suopes-gold text-black px-4 py-2 rounded-lg text-[10px] uppercase font-bold hover:bg-white transition-colors text-center shadow-lg border-b-2 border-black/20 w-fit"
+            className="inline-flex mt-1 mb-1 mr-1 bg-suopes-gold text-black px-4 py-2 rounded-lg text-[10px] uppercase font-bold hover:bg-white transition-colors text-center shadow-lg border-b-2 border-black/20 w-fit decoration-transparent items-center justify-center"
           >
             {match[3]}
           </a>
@@ -146,11 +157,11 @@ export default function Assistant() {
       lastIndex = regex.lastIndex;
     }
     
-    if (lastIndex < content.length) {
-      elements.push(<span key={lastIndex}>{content.substring(lastIndex)}</span>);
+    if (lastIndex < cleanContent.length) {
+      elements.push(<span key={lastIndex}>{cleanContent.substring(lastIndex)}</span>);
     }
     
-    return <div className="flex flex-col gap-0.5">{elements}</div>;
+    return <div className="flex flex-col gap-0.5 whitespace-pre-wrap">{elements}</div>;
   };
 
   return (
