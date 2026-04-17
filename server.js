@@ -10,6 +10,7 @@ import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var HQ_DATA_DIR = path.resolve(__dirname, "..", "suopes_data_HQ");
@@ -205,6 +206,32 @@ async function initializeDatabase() {
   }
 }
 initializeDatabase();
+var genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+async function getAssistantContext() {
+  try {
+    const [products] = await db.execute("SELECT name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [gallery] = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
+    let context = "INFORMA\xC7\xD5ES DO ARSENAL SUOPES (CONTEXTO):\n\n";
+    context += "--- PRODUTOS DISPON\xCDVEIS ---\n";
+    products.forEach((p) => {
+      context += `- ${p.name} | Categoria: ${p.category} | Pre\xE7o: R$ ${p.price}
+`;
+      if (p.description) context += `  Descri\xE7\xE3o: ${p.description}
+`;
+      if (p.features) context += `  Caracter\xEDsticas: ${p.features}
+`;
+    });
+    context += "\n--- GALERIA OPERACIONAL (MISS\xD5ES) ---\n";
+    gallery.forEach((g) => {
+      context += `- ${g.title}: ${g.context || ""} (Local: ${g.location || "N/A"})
+`;
+    });
+    return context;
+  } catch (error) {
+    console.error("Erro ao buscar contexto para o assistente:", error);
+    return "Erro ao carregar dados do cat\xE1logo.";
+  }
+}
 var transporter;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   transporter = nodemailer.createTransport({
@@ -705,6 +732,43 @@ async function startServer() {
       });
     }
     res.json({ options });
+  });
+  app.post("/api/chat", async (req, res) => {
+    const { messages } = req.body;
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ message: "Assistente temporariamente fora de servi\xE7o (Chave n\xE3o configurada)." });
+    }
+    try {
+      const context = await getAssistantContext();
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: `Voc\xEA \xE9 o ASSISTENTE SUOPES, um operador de suporte t\xE1tico de elite para a loja SUOPES TACTICAL.
+        Sua miss\xE3o \xE9 ajudar os clientes a escolherem os melhores equipamentos, explicar detalhes t\xE9cnicos e tirar d\xFAvidas sobre a loja.
+        
+        REGRAS DE CONDUTA:
+        1. Seja profissional, t\xE9cnico, direto e use vocabul\xE1rio t\xE1tico (ex: "Arsenal", "Opera\xE7\xE3o", "Miss\xE3o", "Equipamento").
+        2. Use os dados do ARSENAL fornecidos abaixo para responder. Se um produto n\xE3o estiver na lista, informe que no momento n\xE3o temos no estoque mas podemos verificar a reposi\xE7\xE3o.
+        3. Nunca invente pre\xE7os ou caracter\xEDsticas.
+        4. Se perguntado sobre algo n\xE3o relacionado \xE0 loja ou t\xE1tico, redirecione gentilmente o cliente para o foco da SUOPES.
+        5. Formate as respostas usando Markdown para facilitar a leitura (use negrito para nomes de produtos e pre\xE7os).
+
+        ${context}`
+      });
+      const chat = model.startChat({
+        history: messages.slice(0, -1).map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }]
+        }))
+      });
+      const lastMessage = messages[messages.length - 1].content;
+      const result = await chat.sendMessage(lastMessage);
+      const response = await result.response;
+      const text = response.text();
+      res.json({ content: text });
+    } catch (error) {
+      console.error("Erro no chat do assistente:", error);
+      res.status(500).json({ message: "Desculpe operador, houve uma falha na comunica\xE7\xE3o t\xE1tica.", error: error.message });
+    }
   });
   app.post("/api/checkout", async (req, res) => {
     const { userId, payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;
