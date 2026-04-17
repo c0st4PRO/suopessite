@@ -297,11 +297,11 @@ export default function Assistant() {
       >
         {/* Tooltip Hover Exclusivo para Desktop */}
         {!isOpen && (
-          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap bg-suopes-black border border-suopes-gray text-white px-3 py-2 rounded-lg text-[10px] font-bold tracking-widest pointer-events-none items-center gap-2 shadow-2xl">
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap bg-suopes-black border border-suopes-gray text-white px-3 py-2 rounded-lg text-[10px] font-bold tracking-widest pointer-events-none items-center gap-2 shadow-2xl">
+            {/* Seta do tooltip apontando para o botão (Lado Esquerdo) */}
+            <div className="absolute top-1/2 -left-[5px] -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-r-[5px] border-r-suopes-gray" />
+            <div className="absolute top-1/2 -left-[4px] -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[4px] border-r-suopes-black" />
             ASSISTENTE SUOPES
-            {/* Seta do tooltip apontando para o botão */}
-            <div className="absolute top-1/2 -right-[5px] -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[5px] border-l-suopes-gray" />
-            <div className="absolute top-1/2 -right-[4px] -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[4px] border-l-suopes-black" />
           </div>
         )}
         <AnimatePresence mode="wait">
