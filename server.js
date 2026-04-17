@@ -209,12 +209,35 @@ initializeDatabase();
 var genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 async function getAssistantContext() {
   try {
-    const [products] = await db.execute("SELECT id, image, name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [products] = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, colors, sizes, has_sizes FROM products");
     const [gallery] = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
     let context = "INFORMA\xC7\xD5ES DO CAT\xC1LOGO SUOPES (CONTEXTO):\n\n";
-    context += "--- PRODUTOS DISPON\xCDVEIS ---\n";
+    context += "--- PRODUTOS DISPON\xCDVEIS E ESGOTADOS ---\n";
     products.forEach((p) => {
-      context += `- ID: ${p.id} | Nome: ${p.name} | Categoria: ${p.category} | Pre\xE7o: R$ ${p.price}
+      let colorsText = "Padr\xE3o";
+      try {
+        if (p.colors) {
+          const cArr = typeof p.colors === "string" ? JSON.parse(p.colors) : p.colors;
+          if (Array.isArray(cArr) && cArr.length > 0) {
+            colorsText = cArr.map((color) => `${color.name} (${color.inStock !== false ? "Em Estoque" : "Fora de Estoque"})`).join(", ");
+          }
+        }
+      } catch (e) {
+      }
+      let sizesText = "Tamanho \xDAnico";
+      try {
+        if (p.has_sizes || p.has_sizes === 1) {
+          if (p.sizes) {
+            const sArr = typeof p.sizes === "string" ? JSON.parse(p.sizes) : p.sizes;
+            if (Array.isArray(sArr) && sArr.length > 0) sizesText = sArr.join(", ");
+          }
+        }
+      } catch (e) {
+      }
+      const stockStatus = p.in_stock === 1 ? "EM ESTOQUE" : "ESGOTADO / INDISPON\xCDVEL";
+      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} | Pre\xE7o: R$ ${p.price}
+`;
+      context += `  Categoria: ${p.category} | Cores: ${colorsText} | Tamanhos: ${sizesText}
 `;
       if (p.description) context += `  Descri\xE7\xE3o: ${p.description}
 `;
@@ -750,7 +773,8 @@ async function startServer() {
         2. OBRIGAT\xD3RIO (PRODUTOS): Sempre que sugerir produtos, insira a tag literal na linha EXATAMENTE ASSIM: [PRODUTO:id]. Exemplo: [PRODUTO:suo-001]. IMPORTANTE: Nunca envolva a tag em negritos (**[PRODUTO:id]**) e nunca envie mais de dois produtos de uma vez.
         3. OBRIGAT\xD3RIO (CAT\xC1LOGO): N\xC3O fique mandando o usu\xE1rio ver o cat\xE1logo a toda hora. S\xF3 mande se o contexto for de busca estritamente gen\xE9rica. Caso precise, envie APENAS O LINK LITERAL: [Ver Cat\xE1logo](/#catalogo).
         4. OBRIGAT\xD3RIO (ATENDIMENTO HUMANO): N\xC3O ofere\xE7a o atendimento humanizado para qualquer d\xFAvida b\xE1sica! Ofere\xE7a EXCLUSIVAMENTE em problemas t\xE9cnicos graves, cancelamentos ou situa\xE7\xF5es absolutamente complexas de resolver. Al\xE9m disso, PRIMEIRO pergunte se ele quer acionar um humano. APENAS se ele aceitar, envie: [Falar com Atendimento Humanizado](https://wa.me/551153047015).
-        5. Utilize apenas as informa\xE7\xF5es de cat\xE1logo fornecidas abaixo. Nunca invente pre\xE7os, tamanhos ou detalhes n\xE3o listados.
+        5. ESTOQUE E TAMANHOS: Voc\xEA tem acesso aos produtos ativos E esgotados. Se um cliente perguntar sobre algo esgotado, avise-o pacientemente que ele est\xE1 indispon\xEDvel momentaneamente. Se perguntarem cores e tamanhos dispon\xEDveis, leia as informa\xE7\xF5es fornecidas e repasse com precis\xE3o. NUNCA diga que n\xE3o temos um produto apenas por ele estar esgotado.
+        6. Utilize apenas as informa\xE7\xF5es de cat\xE1logo fornecidas abaixo. Nunca invente pre\xE7os, tamanhos ou detalhes n\xE3o listados.
 
         CAT\xC1LOGO E INFORMA\xC7\xD5ES:
         ${context}`

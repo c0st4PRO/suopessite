@@ -238,14 +238,37 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 async function getAssistantContext() {
   try {
-    const [products]: any = await db.execute("SELECT id, image, name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [products]: any = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, colors, sizes, has_sizes FROM products");
     const [gallery]: any = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
     
     let context = "INFORMAÇÕES DO CATÁLOGO SUOPES (CONTEXTO):\n\n";
     
-    context += "--- PRODUTOS DISPONÍVEIS ---\n";
+    context += "--- PRODUTOS DISPONÍVEIS E ESGOTADOS ---\n";
     products.forEach((p: any) => {
-      context += `- ID: ${p.id} | Nome: ${p.name} | Categoria: ${p.category} | Preço: R$ ${p.price}\n`;
+      let colorsText = "Padrão";
+      try {
+        if (p.colors) {
+          const cArr = typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors;
+          if (Array.isArray(cArr) && cArr.length > 0) {
+            colorsText = cArr.map(color => `${color.name} (${color.inStock !== false ? 'Em Estoque' : 'Fora de Estoque'})`).join(', ');
+          }
+        }
+      } catch(e) {}
+      
+      let sizesText = "Tamanho Único";
+      try {
+        if (p.has_sizes || p.has_sizes === 1) {
+          if (p.sizes) {
+            const sArr = typeof p.sizes === 'string' ? JSON.parse(p.sizes) : p.sizes;
+            if (Array.isArray(sArr) && sArr.length > 0) sizesText = sArr.join(', ');
+          }
+        }
+      } catch(e) {}
+
+      const stockStatus = p.in_stock === 1 ? 'EM ESTOQUE' : 'ESGOTADO / INDISPONÍVEL';
+
+      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} | Preço: R$ ${p.price}\n`;
+      context += `  Categoria: ${p.category} | Cores: ${colorsText} | Tamanhos: ${sizesText}\n`;
       if (p.description) context += `  Descrição: ${p.description}\n`;
       if (p.features) context += `  Características: ${p.features}\n`;
     });
@@ -848,7 +871,8 @@ async function startServer() {
         2. OBRIGATÓRIO (PRODUTOS): Sempre que sugerir produtos, insira a tag literal na linha EXATAMENTE ASSIM: [PRODUTO:id]. Exemplo: [PRODUTO:suo-001]. IMPORTANTE: Nunca envolva a tag em negritos (**[PRODUTO:id]**) e nunca envie mais de dois produtos de uma vez.
         3. OBRIGATÓRIO (CATÁLOGO): NÃO fique mandando o usuário ver o catálogo a toda hora. Só mande se o contexto for de busca estritamente genérica. Caso precise, envie APENAS O LINK LITERAL: [Ver Catálogo](/#catalogo).
         4. OBRIGATÓRIO (ATENDIMENTO HUMANO): NÃO ofereça o atendimento humanizado para qualquer dúvida básica! Ofereça EXCLUSIVAMENTE em problemas técnicos graves, cancelamentos ou situações absolutamente complexas de resolver. Além disso, PRIMEIRO pergunte se ele quer acionar um humano. APENAS se ele aceitar, envie: [Falar com Atendimento Humanizado](https://wa.me/551153047015).
-        5. Utilize apenas as informações de catálogo fornecidas abaixo. Nunca invente preços, tamanhos ou detalhes não listados.
+        5. ESTOQUE E TAMANHOS: Você tem acesso aos produtos ativos E esgotados. Se um cliente perguntar sobre algo esgotado, avise-o pacientemente que ele está indisponível momentaneamente. Se perguntarem cores e tamanhos disponíveis, leia as informações fornecidas e repasse com precisão. NUNCA diga que não temos um produto apenas por ele estar esgotado.
+        6. Utilize apenas as informações de catálogo fornecidas abaixo. Nunca invente preços, tamanhos ou detalhes não listados.
 
         CATÁLOGO E INFORMAÇÕES:
         ${context}`
