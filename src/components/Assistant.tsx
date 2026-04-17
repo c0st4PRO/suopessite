@@ -80,7 +80,7 @@ export default function Assistant() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Falha desconhecida na comunicação tática');
+        throw new Error(data.error || data.message || 'Falha desconhecida na comunicação tática');
       }
       
       const assistantMessage: Message = {
