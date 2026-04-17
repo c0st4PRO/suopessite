@@ -782,16 +782,20 @@ async function startServer() {
 
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
+      
+      // Auto-generador de SKU: Prefixo fixo + Primeiras 3 letras da Categoria + Digitos Aleatórios
+      let autoCategory = category ? category.split(',')[0].substring(0, 3).toUpperCase() : 'GER';
+      const autoSku = sku && sku.trim() !== '' ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
 
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
       );
-      res.json({ id, ...req.body });
+      res.json({ id, sku: autoSku, ...req.body });
     } catch (err) {
       console.error("Erro ao criar produto:", err);
       res.status(500).json({ message: "Erro ao criar produto" });

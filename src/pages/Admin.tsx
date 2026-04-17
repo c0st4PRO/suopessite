@@ -429,30 +429,17 @@ export function Admin({ user }: { user: UserType | null }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Preço (R$)</label>
-              <input 
-                type="number" 
-                step="0.01"
-                required
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">SKU</label>
-              <input 
-                type="text" 
-                required
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
-                placeholder="SUO-XXX-YYY"
-              />
-            </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Preço (R$)</label>
+            <input 
+              type="number" 
+              step="0.01"
+              required
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+              placeholder="0.00"
+            />
           </div>
 
           <div className="space-y-2">
