@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, X, Send, Bot, User, Sparkles, Minus } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Product } from '../types';
+import { Link } from 'react-router-dom';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -26,6 +28,14 @@ export default function Assistant() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [catalog, setCatalog] = useState<Product[]>([]);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(r => r.json())
+      .then(data => setCatalog(Array.isArray(data) ? data : data.products || []))
+      .catch(console.error);
+  }, []);
 
   // Scroll automático para o fim
   useEffect(() => {
@@ -82,15 +92,65 @@ export default function Assistant() {
     }
   };
 
+  const InlineProductCard = ({ id }: { id: string }) => {
+    const product = catalog.find(p => p.id === id);
+    if (!product) return <span className="text-suopes-red font-mono text-[9px] block my-1 animate-pulse">[Localizando produto no arsenal...]</span>;
+
+    return (
+      <Link to={`/product/${product.id}`} className="mt-3 mb-1 block w-full border border-suopes-gold/40 bg-black/60 rounded-xl overflow-hidden hover:border-suopes-gold transition-colors flex items-center group cursor-pointer shadow-lg">
+        <div className="w-16 h-16 bg-suopes-gray flex-shrink-0 overflow-hidden relative">
+          <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+        </div>
+        <div className="p-2 flex-1 min-w-0">
+          <h4 className="text-[10px] font-bold text-white truncate uppercase m-0 leading-tight">{product.name}</h4>
+          <span className="text-[11px] text-suopes-gold font-mono block mt-1">R$ {Number(product.price).toFixed(2)}</span>
+        </div>
+        <div className="px-3">
+          <div className="w-6 h-6 rounded-full bg-suopes-red flex items-center justify-center text-white font-bold text-[12px] group-hover:bg-suopes-gold group-hover:text-black transition-colors">+</div>
+        </div>
+      </Link>
+    );
+  };
+
   const formatMessage = (content: string) => {
-    // Regex simples para negrito **texto**
-    const parts = content.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="text-suopes-gold">{part.slice(2, -2)}</strong>;
+    const regex = /(\[PRODUTO:([^\]]+)\])|\[([^\]]+)\]\(([^)]+)\)|(\*\*.*?\*\*)/g;
+    
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+    
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        elements.push(<span key={lastIndex}>{content.substring(lastIndex, match.index)}</span>);
       }
-      return part;
-    });
+      
+      if (match[1]) {
+        elements.push(<InlineProductCard key={match.index} id={match[2]} />);
+      } else if (match[3] && match[4]) {
+        const isExternal = match[4].startsWith('http');
+        elements.push(
+          <a 
+            key={match.index} 
+            href={match[4]} 
+            target={isExternal ? "_blank" : "_self"} 
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            className="inline-block mt-2 mb-1 bg-suopes-gold text-black px-4 py-2 rounded-lg text-[10px] uppercase font-bold hover:bg-white transition-colors text-center shadow-lg border-b-2 border-black/20 w-fit"
+          >
+            {match[3]}
+          </a>
+        );
+      } else if (match[5]) {
+        elements.push(<strong key={match.index} className="text-suopes-gold">{match[5].slice(2, -2)}</strong>);
+      }
+      
+      lastIndex = regex.lastIndex;
+    }
+    
+    if (lastIndex < content.length) {
+      elements.push(<span key={lastIndex}>{content.substring(lastIndex)}</span>);
+    }
+    
+    return <div className="flex flex-col gap-0.5">{elements}</div>;
   };
 
   return (

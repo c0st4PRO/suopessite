@@ -238,14 +238,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 async function getAssistantContext() {
   try {
-    const [products]: any = await db.execute("SELECT name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [products]: any = await db.execute("SELECT id, image, name, description, price, category, features FROM products WHERE in_stock = 1");
     const [gallery]: any = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
     
-    let context = "INFORMAÇÕES DO ARSENAL SUOPES (CONTEXTO):\n\n";
+    let context = "INFORMAÇÕES DO CATÁLOGO SUOPES (CONTEXTO):\n\n";
     
     context += "--- PRODUTOS DISPONÍVEIS ---\n";
     products.forEach((p: any) => {
-      context += `- ${p.name} | Categoria: ${p.category} | Preço: R$ ${p.price}\n`;
+      context += `- ID: ${p.id} | Nome: ${p.name} | Categoria: ${p.category} | Preço: R$ ${p.price}\n`;
       if (p.description) context += `  Descrição: ${p.description}\n`;
       if (p.features) context += `  Características: ${p.features}\n`;
     });
@@ -845,10 +845,10 @@ async function startServer() {
         
         REGRAS DE CONDUTA:
         1. Fale de maneira natural, educada, clara e objetiva. NÃO use encenações, evite jargões de forma forçada, e não trate o cliente como militar (ex: não use palavras como "Operador", "Missão", "Arsenal" a não ser que natural para o produto).
-        2. Utilize apenas as informações de catálogo fornecidas abaixo. Nunca invente preços, tamanhos ou detalhes não listados.
-        3. Se não tivermos o produto, informe isso gentilmente.
-        4. Caso a requisição do usuário seja muito complexa para você, ou exija acompanhamento ou dúvidas ultratécnicas, encerre repassando a ele o número do nosso atendimento humanizado oficial via WhatsApp: (11) 5304-7015.
-        5. Formate as mensagens de forma limpa, utilizando Markdown com negritos (ex: em nomes de produto) e listas.
+        2. OBRIGATÓRIO (PRODUTOS): Sempre que você citar ou recomendar qualquer produto, você OBRIGATORIAMENTE deve inserir a tag literal [PRODUTO:id]. Exemplo: [PRODUTO:suo-001]. Isso gera o visual "Compre Junto" na tela do cliente.
+        3. OBRIGATÓRIO (CATEGORIAS): Sempre que citar categorias de forma genérica, crie hiperlinks formatados, exemplo: [Ver Categoria](/category/nomedacategoria).
+        4. OBRIGATÓRIO (ATENDIMENTO HUMANO): Se não souber algo, houver um erro, a requisição for muito complexa ou o cliente desejar falar com um humano, PARE de inventar informações. Pergunte se ele quer ajuda de um consultor e imediatamente inclua o link clicável via Markdown: [Falar com Atendimento Humanizado](https://wa.me/551153047015).
+        5. Utilize apenas as informações de catálogo fornecidas abaixo. Nunca invente preços, tamanhos ou detalhes não listados.
 
         CATÁLOGO E INFORMAÇÕES:
         ${context}`

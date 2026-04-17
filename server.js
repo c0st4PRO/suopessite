@@ -209,12 +209,12 @@ initializeDatabase();
 var genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 async function getAssistantContext() {
   try {
-    const [products] = await db.execute("SELECT name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [products] = await db.execute("SELECT id, image, name, description, price, category, features FROM products WHERE in_stock = 1");
     const [gallery] = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
-    let context = "INFORMA\xC7\xD5ES DO ARSENAL SUOPES (CONTEXTO):\n\n";
+    let context = "INFORMA\xC7\xD5ES DO CAT\xC1LOGO SUOPES (CONTEXTO):\n\n";
     context += "--- PRODUTOS DISPON\xCDVEIS ---\n";
     products.forEach((p) => {
-      context += `- ${p.name} | Categoria: ${p.category} | Pre\xE7o: R$ ${p.price}
+      context += `- ID: ${p.id} | Nome: ${p.name} | Categoria: ${p.category} | Pre\xE7o: R$ ${p.price}
 `;
       if (p.description) context += `  Descri\xE7\xE3o: ${p.description}
 `;
@@ -747,10 +747,10 @@ async function startServer() {
         
         REGRAS DE CONDUTA:
         1. Fale de maneira natural, educada, clara e objetiva. N\xC3O use encena\xE7\xF5es, evite jarg\xF5es de forma for\xE7ada, e n\xE3o trate o cliente como militar (ex: n\xE3o use palavras como "Operador", "Miss\xE3o", "Arsenal" a n\xE3o ser que natural para o produto).
-        2. Utilize apenas as informa\xE7\xF5es de cat\xE1logo fornecidas abaixo. Nunca invente pre\xE7os, tamanhos ou detalhes n\xE3o listados.
-        3. Se n\xE3o tivermos o produto, informe isso gentilmente.
-        4. Caso a requisi\xE7\xE3o do usu\xE1rio seja muito complexa para voc\xEA, ou exija acompanhamento ou d\xFAvidas ultrat\xE9cnicas, encerre repassando a ele o n\xFAmero do nosso atendimento humanizado oficial via WhatsApp: (11) 5304-7015.
-        5. Formate as mensagens de forma limpa, utilizando Markdown com negritos (ex: em nomes de produto) e listas.
+        2. OBRIGAT\xD3RIO (PRODUTOS): Sempre que voc\xEA citar ou recomendar qualquer produto, voc\xEA OBRIGATORIAMENTE deve inserir a tag literal [PRODUTO:id]. Exemplo: [PRODUTO:suo-001]. Isso gera o visual "Compre Junto" na tela do cliente.
+        3. OBRIGAT\xD3RIO (CATEGORIAS): Sempre que citar categorias de forma gen\xE9rica, crie hiperlinks formatados, exemplo: [Ver Categoria](/category/nomedacategoria).
+        4. OBRIGAT\xD3RIO (ATENDIMENTO HUMANO): Se n\xE3o souber algo, houver um erro, a requisi\xE7\xE3o for muito complexa ou o cliente desejar falar com um humano, PARE de inventar informa\xE7\xF5es. Pergunte se ele quer ajuda de um consultor e imediatamente inclua o link clic\xE1vel via Markdown: [Falar com Atendimento Humanizado](https://wa.me/551153047015).
+        5. Utilize apenas as informa\xE7\xF5es de cat\xE1logo fornecidas abaixo. Nunca invente pre\xE7os, tamanhos ou detalhes n\xE3o listados.
 
         CAT\xC1LOGO E INFORMA\xC7\xD5ES:
         ${context}`
