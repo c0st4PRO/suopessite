@@ -112,7 +112,7 @@ export default function Assistant() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+    <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start">
       {/* Janela de Chat */}
       <AnimatePresence>
         {isOpen && (
@@ -120,7 +120,7 @@ export default function Assistant() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="mb-4 w-[350px] md:w-[400px] h-[500px] bg-suopes-black/90 backdrop-blur-xl border border-suopes-gray rounded-2xl shadow-2xl flex flex-col overflow-hidden origin-bottom-right"
+            className="mb-4 w-[350px] md:w-[400px] h-[500px] bg-suopes-black/90 backdrop-blur-xl border border-suopes-gray rounded-2xl shadow-2xl flex flex-col overflow-hidden origin-bottom-left"
           >
             {/* Header */}
             <div className="p-4 border-b border-suopes-gray bg-suopes-gray/10 flex items-center justify-between">
