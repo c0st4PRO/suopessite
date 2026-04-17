@@ -16,36 +16,16 @@ interface Message {
 
 export default function Assistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: 'assistant',
+      content: 'Olá! Sou a inteligência artificial da SUOPES. Estou aqui para te ajudar a encontrar produtos, verificar especificações e te dar recomendações. Como posso ajudar?',
+      timestamp: Date.now()
+    }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Carregar histórico do localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('suopes_chat_history');
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved));
-      } catch (e) {
-        console.error('Erro ao carregar histórico:', e);
-      }
-    } else {
-      // Mensagem inicial
-      setMessages([{
-        role: 'assistant',
-        content: 'Olá Operador! Sou o **ASSISTENTE SUOPES**. Como posso ajudar na sua missão hoje? Procuro equipamentos ou tiro dúvidas táticas?',
-        timestamp: Date.now()
-      }]);
-    }
-  }, []);
-
-  // Salvar no localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('suopes_chat_history', JSON.stringify(messages));
-    }
-  }, [messages]);
 
   // Scroll automático para o fim
   useEffect(() => {
