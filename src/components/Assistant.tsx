@@ -291,10 +291,19 @@ export default function Assistant() {
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 relative",
+          "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 relative group",
           isOpen ? "bg-suopes-red text-white rotate-90" : "bg-black text-suopes-gold border border-suopes-gray"
         )}
       >
+        {/* Tooltip Hover Exclusivo para Desktop */}
+        {!isOpen && (
+          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap bg-suopes-black border border-suopes-gray text-white px-3 py-2 rounded-lg text-[10px] font-bold tracking-widest pointer-events-none items-center gap-2 shadow-2xl">
+            ASSISTENTE SUOPES
+            {/* Seta do tooltip apontando para o botão */}
+            <div className="absolute top-1/2 -right-[5px] -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[5px] border-l-suopes-gray" />
+            <div className="absolute top-1/2 -right-[4px] -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[4px] border-l-suopes-black" />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {isOpen ? (
             <motion.div key="close" initial={{ rotate: -90 }} animate={{ rotate: 0 }} exit={{ rotate: 90 }}>
