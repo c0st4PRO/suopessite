@@ -1,5 +1,6 @@
 import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck } from "lucide-react";
 import { Product, User as UserType } from "../types";
 
