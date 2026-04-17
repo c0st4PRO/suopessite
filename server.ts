@@ -400,9 +400,29 @@ async function startServer() {
   // Security Middlewares Hardening
   app.use(globalLimiter);
   app.use(helmet({
-    contentSecurityPolicy: false, // Pode quebrar recursos React no modo dev e algumas integrações CDN, ajustado com cuidado em prod
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://http2.mlstatic.com", "https://sdk.mercadopago.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https://picsum.photos", "https://http2.mlstatic.com"],
+        connectSrc: ["'self'", "https://api.mercadopago.com", "https://generativelanguage.googleapis.com"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"], // Substitui o X-Frame-Options para browsers modernos garantindo que não soframos clickjacking
+      },
+    },
     crossOriginEmbedderPolicy: false
   }));
+
+  // Hardening: Permissions-Policy moderno para barrar sensores
+  app.use((req, res, next) => {
+    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=(self)");
+    // Informa explicitamente que a origem remove o header Express, mesmo que o Helmet já o faça
+    res.removeHeader("X-Powered-By");
+    next();
+  });
   app.use(cors({
     origin: process.env.APP_URL || "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
