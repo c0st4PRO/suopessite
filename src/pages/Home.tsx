@@ -55,7 +55,8 @@ export function Home({ onAddToCart }: HomeProps) {
     "CAMISAS", 
     "PATCHES", 
     "HEADWEAR", 
-    "ACESSÓRIOS"
+    "ACESSÓRIOS",
+    "LINHA ESPECIAL"
   ];
 
   const filteredProducts = products.filter(p => {
