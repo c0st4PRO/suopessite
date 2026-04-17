@@ -159,9 +159,11 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
         body: JSON.stringify({
-          userId: user?.id || email,
           payerEmail: email,
           payerName: name,
           cpf: cpf.replace(/\D/g, ""),
@@ -169,8 +171,7 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
           items: cart,
           shippingAddress: { cep, address, neighborhood, number, city, state },
           paymentMethod,
-          shippingCost: selectedShipping.cost,
-          totalAmount: total
+          shippingCost: selectedShipping.cost
         })
       });
 

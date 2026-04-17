@@ -106,7 +106,7 @@ export default function App() {
             <Route path="/verify" element={<Verify />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/checkout" element={<Checkout user={user} cart={cart} clearCart={clearCart} />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin" element={<Admin user={user} />} />
           </Routes>
         </main>
 

@@ -10,6 +10,7 @@ import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import jwt from "jsonwebtoken";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,12 +28,37 @@ if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) fs.mkdirSync(PERSISTENT_UPLOADS_DIR,
 const db = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'u177568398_admin',
-  password: process.env.DB_PASSWORD || '88179501Sa@',
+  password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'u177568398_suopes',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+
+const JWT_SECRET = process.env.JWT_SECRET || "suopes-super-secret-key-2026-hq";
+
+// Middleware de Autenticação JWT
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.status(401).json({ message: "Acesso negado. Token não fornecido." });
+  
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.status(403).json({ message: "Token inválido ou expirado." });
+    req.user = user;
+    next();
+  });
+};
+
+const requireAdmin = (req: any, res: any, next: any) => {
+  authenticateToken(req, res, () => {
+    if (req.user.role !== 'admin') {
+       return res.status(403).json({ message: "Acesso negado. Permissões de administrador requeridas." });
+    }
+    next();
+  });
+};
 
 async function initializeDatabase() {
   console.log("Tentando conectar ao banco de dados MySQL...");
@@ -625,11 +651,16 @@ async function startServer() {
         return res.status(403).json({ message: "Por favor, verifique seu e-mail antes de fazer login", unverified: true });
       }
 
+      const role = ['samuelcpaulino@gmail.com', 'habnadabeh@gmail.com', 'fabinparafal762@gmail.com'].includes(user.email) ? 'admin' : user.role;
+      
+      const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET, { expiresIn: "24h" });
+
       res.json({
         id: user.id,
         name: user.name,
         email: user.email,
-        role: ['samuelcpaulino@gmail.com', 'habnadabeh@gmail.com', 'fabinparafal762@gmail.com'].includes(user.email) ? 'admin' : user.role
+        role: role,
+        token: token
       });
     } catch (err) {
       console.error(err);
@@ -677,7 +708,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requireAdmin, async (req, res) => {
     try {
       const { name, description, price, category, image, featured, inStock } = req.body;
       const id = Date.now().toString();
@@ -695,7 +726,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/products/:id", async (req, res) => {
+  app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
@@ -738,7 +769,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/upload", upload.single("image"), (req, res) => {
+  app.post("/api/upload", requireAdmin, upload.single("image"), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado" });
     }
@@ -746,7 +777,7 @@ async function startServer() {
     res.json({ imageUrl });
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       await db.execute("DELETE FROM products WHERE id = ?", [id]);
@@ -911,10 +942,13 @@ async function startServer() {
 
   // Restante das rotas...
 
-  app.post("/api/checkout", async (req, res) => {
-    const { userId, payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;
+  app.post("/api/checkout", authenticateToken, async (req: any, res: any) => {
+    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
     
-    if (!items || !items.length || !totalAmount) {
+    // Pegar User ID do JWT descriptografado pelo Middleware
+    const userId = req.user.id;
+    
+    if (!items || !items.length) {
       return res.status(400).json({ message: "Carrinho vazio ou inválido" });
     }
 
@@ -923,6 +957,33 @@ async function startServer() {
     }
 
     try {
+      // 🚨 CÁLCULO SEGURO DO BACKEND 🚨
+      // Busca os preços REAIS direto do banco de dados, ignorando os preços do carrinho
+      let calculatedTotal = 0;
+      const secureItems = [];
+
+      for (const item of items) {
+        // Busca o preço inviolável no banco
+        const [rows]: any = await db.execute("SELECT price FROM products WHERE id = ?", [item.id]);
+        
+        if (rows.length === 0) {
+           return res.status(400).json({ message: `Produto ${item.id} não encontrado no banco de dados.` });
+        }
+        
+        const realPrice = parseFloat(rows[0].price);
+        const itemQuantity = parseInt(item.quantity) || 1;
+        calculatedTotal += (realPrice * itemQuantity);
+        
+        // Empurra o item para a matriz segura para gravar no banco posteriormente
+        secureItems.push({
+          ...item,
+          price: realPrice 
+        });
+      }
+
+      // Adiciona o Frete
+      calculatedTotal += parseFloat(shippingCost || 0);
+
       const orderId = "ORD-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
       
       let mp_id = null;
@@ -938,7 +999,7 @@ async function startServer() {
           const payment = new Payment(client);
           const result = await payment.create({
             body: {
-              transaction_amount: totalAmount,
+              transaction_amount: calculatedTotal,
               description: `SUOPES TACTICAL - Pedido ${orderId}`,
               payment_method_id: "pix",
               external_reference: orderId,
@@ -959,7 +1020,7 @@ async function startServer() {
                   id: orderId,
                   title: `SUOPES TACTICAL - Pedido ${orderId}`,
                   quantity: 1,
-                  unit_price: totalAmount
+                  unit_price: calculatedTotal
                 }
               ],
               external_reference: orderId,
@@ -997,7 +1058,7 @@ async function startServer() {
         userId || "anonymous",
         payerName || "Não informado",
         payerEmail || "Não informado",
-        totalAmount, 
+        calculatedTotal, 
         shippingCost || 0,
         JSON.stringify(shippingAddress),
         paymentMethod,
@@ -1013,7 +1074,7 @@ async function startServer() {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
 
-      for (const item of items) {
+      for (const item of secureItems) {
         await db.execute(itemQuery, [orderId, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
       }
 
@@ -1106,7 +1167,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/orders/:id/check-payment", async (req, res) => {
+  app.post("/api/admin/orders/:id/check-payment", requireAdmin, async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -1186,7 +1247,7 @@ async function startServer() {
   });
 
   // ADMIN - GESTÃO DE PEDIDOS (LOGÍSTICA)
-  app.get("/api/admin/orders", async (req, res) => {
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     try {
       const [orders]: any = await db.execute("SELECT * FROM orders ORDER BY date DESC");
       
@@ -1230,7 +1291,7 @@ async function startServer() {
   });
 
 
-  app.patch("/api/admin/orders/:id/status", async (req, res) => {
+  app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const validStatuses = ["pendente", "processando", "enviado", "concluido", "cancelado"];
@@ -1286,7 +1347,7 @@ async function startServer() {
   });
 
   // ADMIN MKT ENDPOINTS
-  app.get("/api/admin/newsletter", async (req, res) => {
+  app.get("/api/admin/newsletter", requireAdmin, async (req, res) => {
     try {
       const [subscribers] = await db.execute("SELECT * FROM newsletter_subscribers ORDER BY created_at DESC");
       res.json(subscribers);
@@ -1295,7 +1356,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/waitlist", async (req, res) => {
+  app.get("/api/admin/waitlist", requireAdmin, async (req, res) => {
     try {
       const [rows] = await db.execute("SELECT * FROM waitlist ORDER BY created_at DESC");
       res.json(rows);
@@ -1305,7 +1366,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/notify-stock", async (req, res) => {
+  app.post("/api/admin/notify-stock", requireAdmin, async (req, res) => {
     const { waitlistId, email, productName, details, imageUrl } = req.body;
     
     try {
@@ -1375,7 +1436,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/broadcast", async (req, res) => {
+  app.post("/api/admin/broadcast", requireAdmin, async (req, res) => {
     const { subject, message, testEmail, mode } = req.body;
     if (!subject || !message) return res.status(400).json({ message: "Assunto e mensagem são obrigatórios." });
     

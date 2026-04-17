@@ -1,9 +1,10 @@
 import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck } from "lucide-react";
-import { Product } from "../types";
+import { Product, User as UserType } from "../types";
 
-export function Admin() {
+export function Admin({ user }: { user: UserType | null }) {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -38,6 +39,12 @@ export function Admin() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Escudo Visual de Redirecionamento
+    if (!user || user.role !== 'admin') {
+      navigate("/");
+      return;
+    }
+
     fetchProducts();
     if (activeTab === "marketing") fetchSubscribers();
     if (activeTab === "demanda") fetchWaitlist();
@@ -49,7 +56,7 @@ export function Admin() {
     }
     
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab, user, navigate]);
 
   const fetchProducts = async () => {
     try {
@@ -63,21 +70,27 @@ export function Admin() {
 
   const fetchSubscribers = async () => {
     try {
-      const res = await fetch("/api/admin/newsletter");
+      const res = await fetch("/api/admin/newsletter", {
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
       if (res.ok) setSubscribers(await res.json());
     } catch (err) {}
   };
 
   const fetchWaitlist = async () => {
     try {
-      const res = await fetch("/api/admin/waitlist");
+      const res = await fetch("/api/admin/waitlist", {
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
       if (res.ok) setWaitlist(await res.json());
     } catch (err) {}
   };
 
   const fetchAdminOrders = async () => {
     try {
-      const res = await fetch("/api/admin/orders");
+      const res = await fetch("/api/admin/orders", {
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
       if (res.ok) setAdminOrders(await res.json());
     } catch (err) {
       console.error("Erro ao buscar pedidos:", err);
@@ -88,7 +101,10 @@ export function Admin() {
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
@@ -150,7 +166,8 @@ export function Admin() {
   const handleCheckPayment = async (orderId: string) => {
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/check-payment`, {
-        method: "POST"
+        method: "POST",
+        headers: { "Authorization": `Bearer ${user?.token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -174,7 +191,10 @@ export function Admin() {
     try {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
         body: JSON.stringify({
           subject: broadcastSubject,
           message: broadcastMessage,
@@ -204,7 +224,10 @@ export function Admin() {
       
       const res = await fetch("/api/admin/notify-stock", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
         body: JSON.stringify({
           waitlistId: item.id,
           email: item.email,
@@ -277,6 +300,7 @@ export function Admin() {
         formData.append("image", imageFile);
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
+          headers: { "Authorization": `Bearer ${user?.token}` },
           body: formData,
         });
         const uploadData = await uploadRes.json();
@@ -300,7 +324,10 @@ export function Admin() {
 
       const productRes = await fetch("/api/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
         body: JSON.stringify(productData),
       });
 
@@ -329,6 +356,7 @@ export function Admin() {
     try {
       const res = await fetch(`/api/products/${id}`, {
         method: "DELETE",
+        headers: { "Authorization": `Bearer ${user?.token}` }
       });
       if (res.ok) {
         fetchProducts();

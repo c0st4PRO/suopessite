@@ -11,6 +11,7 @@ import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import jwt from "jsonwebtoken";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var HQ_DATA_DIR = path.resolve(__dirname, "..", "suopes_data_HQ");
@@ -22,12 +23,31 @@ if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) fs.mkdirSync(PERSISTENT_UPLOADS_DIR,
 var db = mysql.createPool({
   host: process.env.DB_HOST || "127.0.0.1",
   user: process.env.DB_USER || "u177568398_admin",
-  password: process.env.DB_PASSWORD || "88179501Sa@",
+  password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || "u177568398_suopes",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+var JWT_SECRET = process.env.JWT_SECRET || "suopes-super-secret-key-2026-hq";
+var authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Acesso negado. Token n\xE3o fornecido." });
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: "Token inv\xE1lido ou expirado." });
+    req.user = user;
+    next();
+  });
+};
+var requireAdmin = (req, res, next) => {
+  authenticateToken(req, res, () => {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado. Permiss\xF5es de administrador requeridas." });
+    }
+    next();
+  });
+};
 async function initializeDatabase() {
   console.log("Tentando conectar ao banco de dados MySQL...");
   console.log(`Configura\xE7\xE3o: Host=${process.env.DB_HOST || "localhost"}, User=${process.env.DB_USER || "u177568398_admin"}, DB=${process.env.DB_NAME || "u177568398_suopes"}`);
@@ -547,11 +567,14 @@ async function startServer() {
       if (!user.verified) {
         return res.status(403).json({ message: "Por favor, verifique seu e-mail antes de fazer login", unverified: true });
       }
+      const role = ["samuelcpaulino@gmail.com", "habnadabeh@gmail.com", "fabinparafal762@gmail.com"].includes(user.email) ? "admin" : user.role;
+      const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET, { expiresIn: "24h" });
       res.json({
         id: user.id,
         name: user.name,
         email: user.email,
-        role: ["samuelcpaulino@gmail.com", "habnadabeh@gmail.com", "fabinparafal762@gmail.com"].includes(user.email) ? "admin" : user.role
+        role,
+        token
       });
     } catch (err) {
       console.error(err);
@@ -598,7 +621,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar produtos" });
     }
   });
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requireAdmin, async (req, res) => {
     try {
       const { name, description, price, category, image, featured, inStock } = req.body;
       const id = Date.now().toString();
@@ -614,7 +637,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao criar produto" });
     }
   });
-  app.put("/api/products/:id", async (req, res) => {
+  app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care } = req.body;
@@ -660,14 +683,14 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao atualizar produto" });
     }
   });
-  app.post("/api/upload", upload.single("image"), (req, res) => {
+  app.post("/api/upload", requireAdmin, upload.single("image"), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado" });
     }
     const imageUrl = `/uploads/${req.file.filename}`;
     res.json({ imageUrl });
   });
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       await db.execute("DELETE FROM products WHERE id = ?", [id]);
@@ -802,15 +825,32 @@ async function startServer() {
       res.status(500).json({ message: "Desculpe operador, houve uma falha na comunica\xE7\xE3o t\xE1tica.", error: error.message });
     }
   });
-  app.post("/api/checkout", async (req, res) => {
-    const { userId, payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;
-    if (!items || !items.length || !totalAmount) {
+  app.post("/api/checkout", authenticateToken, async (req, res) => {
+    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
+    const userId = req.user.id;
+    if (!items || !items.length) {
       return res.status(400).json({ message: "Carrinho vazio ou inv\xE1lido" });
     }
     if (!cpf || !phone) {
       return res.status(400).json({ message: "CPF e Telefone s\xE3o obrigat\xF3rios para checkout." });
     }
     try {
+      let calculatedTotal = 0;
+      const secureItems = [];
+      for (const item of items) {
+        const [rows] = await db.execute("SELECT price FROM products WHERE id = ?", [item.id]);
+        if (rows.length === 0) {
+          return res.status(400).json({ message: `Produto ${item.id} n\xE3o encontrado no banco de dados.` });
+        }
+        const realPrice = parseFloat(rows[0].price);
+        const itemQuantity = parseInt(item.quantity) || 1;
+        calculatedTotal += realPrice * itemQuantity;
+        secureItems.push({
+          ...item,
+          price: realPrice
+        });
+      }
+      calculatedTotal += parseFloat(shippingCost || 0);
       const orderId = "ORD-" + (/* @__PURE__ */ new Date()).getFullYear() + "-" + Math.floor(1e3 + Math.random() * 9e3);
       let mp_id = null;
       let mp_qr_code_base64 = null;
@@ -822,7 +862,7 @@ async function startServer() {
           const payment = new Payment(client);
           const result = await payment.create({
             body: {
-              transaction_amount: totalAmount,
+              transaction_amount: calculatedTotal,
               description: `SUOPES TACTICAL - Pedido ${orderId}`,
               payment_method_id: "pix",
               external_reference: orderId,
@@ -842,7 +882,7 @@ async function startServer() {
                   id: orderId,
                   title: `SUOPES TACTICAL - Pedido ${orderId}`,
                   quantity: 1,
-                  unit_price: totalAmount
+                  unit_price: calculatedTotal
                 }
               ],
               external_reference: orderId,
@@ -877,7 +917,7 @@ async function startServer() {
         userId || "anonymous",
         payerName || "N\xE3o informado",
         payerEmail || "N\xE3o informado",
-        totalAmount,
+        calculatedTotal,
         shippingCost || 0,
         JSON.stringify(shippingAddress),
         paymentMethod,
@@ -891,7 +931,7 @@ async function startServer() {
         INSERT INTO order_items (order_id, product_name, quantity, price, image, color, size)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
-      for (const item of items) {
+      for (const item of secureItems) {
         await db.execute(itemQuery, [orderId, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
       }
       res.status(201).json({
@@ -961,7 +1001,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao consultar status." });
     }
   });
-  app.post("/api/admin/orders/:id/check-payment", async (req, res) => {
+  app.post("/api/admin/orders/:id/check-payment", requireAdmin, async (req, res) => {
     const { id } = req.params;
     try {
       const [orders] = await db.execute("SELECT id, mp_id, payment_method, payment_status FROM orders WHERE id = ?", [id]);
@@ -1024,7 +1064,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar pedidos" });
     }
   });
-  app.get("/api/admin/orders", async (req, res) => {
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     try {
       const [orders] = await db.execute("SELECT * FROM orders ORDER BY date DESC");
       const ordersWithItems = [];
@@ -1067,7 +1107,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar pedidos." });
     }
   });
-  app.patch("/api/admin/orders/:id/status", async (req, res) => {
+  app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const validStatuses = ["pendente", "processando", "enviado", "concluido", "cancelado"];
@@ -1111,7 +1151,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao entrar na lista de espera." });
     }
   });
-  app.get("/api/admin/newsletter", async (req, res) => {
+  app.get("/api/admin/newsletter", requireAdmin, async (req, res) => {
     try {
       const [subscribers] = await db.execute("SELECT * FROM newsletter_subscribers ORDER BY created_at DESC");
       res.json(subscribers);
@@ -1119,7 +1159,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar inscritos." });
     }
   });
-  app.get("/api/admin/waitlist", async (req, res) => {
+  app.get("/api/admin/waitlist", requireAdmin, async (req, res) => {
     try {
       const [rows] = await db.execute("SELECT * FROM waitlist ORDER BY created_at DESC");
       res.json(rows);
@@ -1128,7 +1168,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar lista de espera." });
     }
   });
-  app.post("/api/admin/notify-stock", async (req, res) => {
+  app.post("/api/admin/notify-stock", requireAdmin, async (req, res) => {
     const { waitlistId, email, productName, details, imageUrl } = req.body;
     try {
       const emailSubject = `SUOPES TACTICAL | ESTOQUE RENOVADO: ${productName}`;
@@ -1191,7 +1231,7 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao buscar fila de espera." });
     }
   });
-  app.post("/api/admin/broadcast", async (req, res) => {
+  app.post("/api/admin/broadcast", requireAdmin, async (req, res) => {
     const { subject, message, testEmail, mode } = req.body;
     if (!subject || !message) return res.status(400).json({ message: "Assunto e mensagem s\xE3o obrigat\xF3rios." });
     try {
