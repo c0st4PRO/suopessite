@@ -9,6 +9,7 @@ import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,10 +25,10 @@ if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) fs.mkdirSync(PERSISTENT_UPLOADS_DIR,
 
 // Configuração do Banco de Dados MySQL (Hostinger)
 const db = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  user: process.env.DB_USER || 'u177568398_admin',
-  password: process.env.DB_PASSWORD || '88179501Sa@',
-  database: process.env.DB_NAME || 'u177568398_suopes',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -35,7 +36,7 @@ const db = mysql.createPool({
 
 async function initializeDatabase() {
   console.log("Tentando conectar ao banco de dados MySQL...");
-  console.log(`Configuração: Host=${process.env.DB_HOST || 'localhost'}, User=${process.env.DB_USER || 'u177568398_admin'}, DB=${process.env.DB_NAME || 'u177568398_suopes'}`);
+  console.log(`Configuração: Host=${process.env.DB_HOST || 'localhost'}, User=${process.env.DB_USER || 'N/A'}, DB=${process.env.DB_NAME || 'N/A'}`);
   
   try {
     // Testar conexão
@@ -231,6 +232,35 @@ async function initializeDatabase() {
 
 // Chamar inicialização
 initializeDatabase();
+
+// Configuração do Assistente SUOPES (Google Gemini)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+async function getAssistantContext() {
+  try {
+    const [products]: any = await db.execute("SELECT name, description, price, category, features FROM products WHERE in_stock = 1");
+    const [gallery]: any = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
+    
+    let context = "INFORMAÇÕES DO ARSENAL SUOPES (CONTEXTO):\n\n";
+    
+    context += "--- PRODUTOS DISPONÍVEIS ---\n";
+    products.forEach((p: any) => {
+      context += `- ${p.name} | Categoria: ${p.category} | Preço: R$ ${p.price}\n`;
+      if (p.description) context += `  Descrição: ${p.description}\n`;
+      if (p.features) context += `  Características: ${p.features}\n`;
+    });
+    
+    context += "\n--- GALERIA OPERACIONAL (MISSÕES) ---\n";
+    gallery.forEach((g: any) => {
+      context += `- ${g.title}: ${g.context || ''} (Local: ${g.location || 'N/A'})\n`;
+    });
+    
+    return context;
+  } catch (error) {
+    console.error("Erro ao buscar contexto para o assistente:", error);
+    return "Erro ao carregar dados do catálogo.";
+  }
+}
 
 // Configuração do Transportador de E-mail (SMTP)
 let transporter: nodemailer.Transporter;
@@ -797,6 +827,53 @@ async function startServer() {
 
     res.json({ options });
   });
+
+  // ASSISTENTE SUOPES AI API
+  app.post("/api/chat", async (req, res) => {
+    const { messages } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ message: "Assistente temporariamente fora de serviço (Chave não configurada)." });
+    }
+
+    try {
+      const context = await getAssistantContext();
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        systemInstruction: `Você é o ASSISTENTE SUOPES, um operador de suporte tático de elite para a loja SUOPES TACTICAL.
+        Sua missão é ajudar os clientes a escolherem os melhores equipamentos, explicar detalhes técnicos e tirar dúvidas sobre a loja.
+        
+        REGRAS DE CONDUTA:
+        1. Seja profissional, técnico, direto e use vocabulário tático (ex: "Arsenal", "Operação", "Missão", "Equipamento").
+        2. Use os dados do ARSENAL fornecidos abaixo para responder. Se um produto não estiver na lista, informe que no momento não temos no estoque mas podemos verificar a reposição.
+        3. Nunca invente preços ou características.
+        4. Se perguntado sobre algo não relacionado à loja ou tático, redirecione gentilmente o cliente para o foco da SUOPES.
+        5. Formate as respostas usando Markdown para facilitar a leitura (use negrito para nomes de produtos e preços).
+
+        ${context}`
+      });
+
+      // Formatar histórico para o Gemini
+      const chat = model.startChat({
+        history: messages.slice(0, -1).map((m: any) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }],
+        })),
+      });
+
+      const lastMessage = messages[messages.length - 1].content;
+      const result = await chat.sendMessage(lastMessage);
+      const response = await result.response;
+      const text = response.text();
+
+      res.json({ content: text });
+    } catch (error: any) {
+      console.error("Erro no chat do assistente:", error);
+      res.status(500).json({ message: "Desculpe operador, houve uma falha na comunicação tática.", error: error.message });
+    }
+  });
+
+  // Restante das rotas...
 
   app.post("/api/checkout", async (req, res) => {
     const { userId, payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, totalAmount, shippingCost } = req.body;

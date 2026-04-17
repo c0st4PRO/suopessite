@@ -19,6 +19,7 @@ import { Checkout } from "./pages/Checkout";
 import { Admin } from "./pages/Admin";
 import { Cart } from "./components/Cart";
 import { MusicPlayer } from "./components/MusicPlayer";
+import Assistant from "./components/Assistant";
 import { Product, CartItem, User } from "./types";
 import { Facebook, Instagram, Youtube, Linkedin, ArrowRight } from "lucide-react";
 
@@ -221,6 +222,7 @@ export default function App() {
           onUpdateQuantity={updateQuantity}
         />
         <MusicPlayer />
+        <Assistant />
 
         {/* WhatsApp Floating Button */}
         <a
