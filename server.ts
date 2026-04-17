@@ -25,10 +25,10 @@ if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) fs.mkdirSync(PERSISTENT_UPLOADS_DIR,
 
 // Configuração do Banco de Dados MySQL (Hostinger)
 const db = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: process.env.DB_HOST || '127.0.0.1',
+  user: process.env.DB_USER || 'u177568398_admin',
+  password: process.env.DB_PASSWORD || '88179501Sa@',
+  database: process.env.DB_NAME || 'u177568398_suopes',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -36,7 +36,7 @@ const db = mysql.createPool({
 
 async function initializeDatabase() {
   console.log("Tentando conectar ao banco de dados MySQL...");
-  console.log(`Configuração: Host=${process.env.DB_HOST || 'localhost'}, User=${process.env.DB_USER || 'N/A'}, DB=${process.env.DB_NAME || 'N/A'}`);
+  console.log(`Configuração: Host=${process.env.DB_HOST || 'localhost'}, User=${process.env.DB_USER || 'u177568398_admin'}, DB=${process.env.DB_NAME || 'u177568398_suopes'}`);
   
   try {
     // Testar conexão
