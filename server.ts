@@ -854,11 +854,19 @@ async function startServer() {
       });
 
       // Formatar histórico para o Gemini
+      let formattedHistory = messages.slice(0, -1).map((m: any) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content }],
+      }));
+
+      // Gemini exige que a primeira mensagem do history seja do 'user'.
+      // Como o Assistant manda uma saudação inicial (model), removemos ela.
+      if (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
+        formattedHistory.shift();
+      }
+
       const chat = model.startChat({
-        history: messages.slice(0, -1).map((m: any) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }],
-        })),
+        history: formattedHistory,
       });
 
       const lastMessage = messages[messages.length - 1].content;

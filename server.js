@@ -754,11 +754,15 @@ async function startServer() {
 
         ${context}`
       });
+      let formattedHistory = messages.slice(0, -1).map((m) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content }]
+      }));
+      if (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
+        formattedHistory.shift();
+      }
       const chat = model.startChat({
-        history: messages.slice(0, -1).map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }]
-        }))
+        history: formattedHistory
       });
       const lastMessage = messages[messages.length - 1].content;
       const result = await chat.sendMessage(lastMessage);
