@@ -884,7 +884,7 @@ async function startServer() {
   // Gallery API
   app.get("/api/gallery", async (req, res) => {
     try {
-      const [rows] = await db.execute("SELECT * FROM gallery ORDER BY sort_order ASC, id DESC");
+      const [rows]: any = await db.execute("SELECT *, date_string as date FROM gallery ORDER BY sort_order ASC, id DESC");
       res.json(rows);
     } catch (err) {
       console.error(err);

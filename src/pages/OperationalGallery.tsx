@@ -333,7 +333,7 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
                     <input 
                       type="text"
                       required
-                      value={editItem.date}
+                      value={editItem.date || ""}
                       onChange={(e) => setEditItem({...editItem, date: e.target.value.toUpperCase()})}
                       className="w-full bg-suopes-gray/20 border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none font-mono"
                       placeholder="EX: MAR 2024"
