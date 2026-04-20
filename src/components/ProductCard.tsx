@@ -48,12 +48,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
               <Plus size={16} /> ADICIONAR AO CARRINHO
             </button>
           ) : (
-            <button 
-              onClick={(e) => { e.preventDefault(); /* do nothing */ }}
-              className="px-6 py-3 border border-suopes-red text-suopes-red bg-suopes-red/10 scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 font-mono text-[10px] tracking-widest uppercase"
+            <span 
+              className="px-4 py-3 border border-suopes-red text-suopes-red bg-suopes-red/10 scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 font-mono text-[10px] tracking-widest uppercase cursor-pointer text-center"
             >
-              ESGOTADO
-            </button>
+              AVISE-ME QUANDO CHEGAR
+            </span>
           )}
         </div>
       </Link>
