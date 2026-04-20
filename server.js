@@ -96,6 +96,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS order_items (
         id INT PRIMARY KEY AUTO_INCREMENT,
         order_id VARCHAR(255) NOT NULL,
+        product_id VARCHAR(255),
         product_name VARCHAR(255) NOT NULL,
         quantity INT NOT NULL,
         price DECIMAL(10,2) NOT NULL,
@@ -139,7 +140,10 @@ async function initializeDatabase() {
         features TEXT,
         care TEXT,
         in_stock TINYINT(1) DEFAULT 1,
+        stock_quantity INT DEFAULT 10,
         featured TINYINT(1) DEFAULT 0,
+        is_presale TINYINT(1) DEFAULT 0,
+        presale_date VARCHAR(255) DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -148,7 +152,11 @@ async function initializeDatabase() {
       "ALTER TABLE products ADD COLUMN sizes JSON",
       "ALTER TABLE products ADD COLUMN has_sizes TINYINT(1) DEFAULT 0",
       "ALTER TABLE products ADD COLUMN features TEXT",
-      "ALTER TABLE products ADD COLUMN care TEXT"
+      "ALTER TABLE products ADD COLUMN care TEXT",
+      "ALTER TABLE products ADD COLUMN stock_quantity INT DEFAULT 10",
+      "ALTER TABLE products ADD COLUMN is_presale TINYINT(1) DEFAULT 0",
+      "ALTER TABLE products ADD COLUMN presale_date VARCHAR(255) DEFAULT NULL",
+      "ALTER TABLE order_items ADD COLUMN product_id VARCHAR(255)"
     ];
     for (const sql of newColumns) {
       try {
@@ -232,7 +240,7 @@ initializeDatabase();
 var genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 async function getAssistantContext() {
   try {
-    const [products] = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, colors, sizes, has_sizes FROM products");
+    const [products] = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, stock_quantity, colors, sizes, has_sizes FROM products");
     const [gallery] = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
     let context = "INFORMA\xC7\xD5ES DO CAT\xC1LOGO SUOPES (CONTEXTO):\n\n";
     context += "--- PRODUTOS DISPON\xCDVEIS E ESGOTADOS ---\n";
@@ -257,8 +265,9 @@ async function getAssistantContext() {
         }
       } catch (e) {
       }
-      const stockStatus = p.in_stock === 1 ? "EM ESTOQUE" : "ESGOTADO / INDISPON\xCDVEL";
-      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} | Pre\xE7o: R$ ${p.price}
+      const stockStatus = p.stock_quantity > 0 || p.in_stock === 1 ? "EM ESTOQUE" : "ESGOTADO / INDISPON\xCDVEL";
+      const availableQty = p.stock_quantity !== void 0 ? p.stock_quantity : 10;
+      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} (${availableQty} unid.) | Pre\xE7o: R$ ${p.price}
 `;
       context += `  Categoria: ${p.category} | Cores: ${colorsText} | Tamanhos: ${sizesText}
 `;
@@ -679,6 +688,9 @@ async function startServer() {
           hasSizes: p.has_sizes === 1,
           features: p.features || null,
           care: p.care || null,
+          stockQuantity: p.stock_quantity !== void 0 ? p.stock_quantity : 10,
+          isPresale: p.is_presale === 1,
+          presaleDate: p.presale_date || null,
           featured: p.featured === 1
         };
       });
@@ -690,18 +702,20 @@ async function startServer() {
   });
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care, stockQuantity, isPresale, presaleDate } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      const finalStockQuantity = stockQuantity !== void 0 ? Number(stockQuantity) : 10;
+      const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       let autoCategory = category ? category.split(",")[0].substring(0, 3).toUpperCase() : "GER";
       const autoSku = sku && sku.trim() !== "" ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, stock_quantity, sku, is_presale, presale_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, finalInStock, finalStockQuantity, autoSku, isPresale ? 1 : 0, presaleDate || null]
       );
-      res.json({ id, sku: autoSku, ...req.body });
+      res.json({ id, sku: autoSku, ...req.body, stockQuantity: finalStockQuantity, inStock: finalInStock === 1 });
     } catch (err) {
       console.error("Erro ao criar produto:", err);
       res.status(500).json({ message: "Erro ao criar produto" });
@@ -710,13 +724,15 @@ async function startServer() {
   app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku, stockQuantity, isPresale, presaleDate } = req.body;
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      const finalStockQuantity = stockQuantity !== void 0 ? Number(stockQuantity) : 10;
+      const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, stock_quantity = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ?, is_presale = ?, presale_date = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, finalInStock, finalStockQuantity, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, isPresale ? 1 : 0, presaleDate || null, id]
       );
       const [rows] = await db.execute("SELECT * FROM products WHERE id = ?", [id]);
       if (rows.length > 0) {
@@ -743,6 +759,9 @@ async function startServer() {
           colors: Array.isArray(parsedColors) ? parsedColors : [],
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
           hasSizes: p.has_sizes === 1,
+          stockQuantity: p.stock_quantity !== void 0 ? p.stock_quantity : 10,
+          isPresale: p.is_presale === 1,
+          presaleDate: p.presale_date || null,
           featured: p.featured === 1
         });
       } else {
@@ -775,7 +794,7 @@ async function startServer() {
   });
   app.get("/api/gallery", async (req, res) => {
     try {
-      const [rows] = await db.execute("SELECT * FROM gallery ORDER BY sort_order ASC, id DESC");
+      const [rows] = await db.execute("SELECT *, date_string as date FROM gallery ORDER BY sort_order ASC, id DESC");
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -895,6 +914,23 @@ async function startServer() {
       res.status(500).json({ message: "Desculpe operador, houve uma falha na comunica\xE7\xE3o t\xE1tica.", error: error.message });
     }
   });
+  async function restoreStockForOrder(orderId) {
+    try {
+      const [items] = await db.execute(
+        "SELECT product_id, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL",
+        [orderId]
+      );
+      for (const item of items) {
+        await db.execute(
+          "UPDATE products SET stock_quantity = stock_quantity + ?, in_stock = 1 WHERE id = ?",
+          [item.quantity, item.product_id]
+        );
+        console.log(`[ESTOQUE RESTAURADO] Produto ${item.product_id}: +${item.quantity} unidade(s) devolvida(s) (Pedido ${orderId} cancelado)`);
+      }
+    } catch (err) {
+      console.error(`[ESTOQUE] Erro ao restaurar estoque do pedido ${orderId}:`, err);
+    }
+  }
   app.post("/api/checkout", authenticateToken, async (req, res) => {
     const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
     const userId = req.user.id;
@@ -904,16 +940,41 @@ async function startServer() {
     if (!cpf || !phone) {
       return res.status(400).json({ message: "CPF e Telefone s\xE3o obrigat\xF3rios para checkout." });
     }
+    const connection = await db.getConnection();
     try {
+      await connection.beginTransaction();
       let calculatedTotal = 0;
       const secureItems = [];
       for (const item of items) {
-        const [rows] = await db.execute("SELECT price FROM products WHERE id = ?", [item.id]);
+        const itemQuantity = parseInt(item.quantity) || 1;
+        const [rows] = await connection.execute(
+          "SELECT id, name, price, stock_quantity, in_stock FROM products WHERE id = ? FOR UPDATE",
+          [item.id]
+        );
         if (rows.length === 0) {
+          await connection.rollback();
+          connection.release();
           return res.status(400).json({ message: `Produto ${item.id} n\xE3o encontrado no banco de dados.` });
         }
-        const realPrice = parseFloat(rows[0].price);
-        const itemQuantity = parseInt(item.quantity) || 1;
+        const dbProduct = rows[0];
+        const realPrice = parseFloat(dbProduct.price);
+        const currentStock = dbProduct.stock_quantity !== void 0 ? dbProduct.stock_quantity : 10;
+        if (currentStock < itemQuantity) {
+          await connection.rollback();
+          connection.release();
+          return res.status(409).json({
+            message: `Estoque insuficiente para "${dbProduct.name}". Dispon\xEDvel: ${currentStock}, Solicitado: ${itemQuantity}.`,
+            productId: item.id,
+            available: currentStock
+          });
+        }
+        const newStock = currentStock - itemQuantity;
+        const newInStock = newStock > 0 ? 1 : 0;
+        await connection.execute(
+          "UPDATE products SET stock_quantity = ?, in_stock = ? WHERE id = ?",
+          [newStock, newInStock, item.id]
+        );
+        console.log(`[ESTOQUE] Produto ${dbProduct.name}: ${currentStock} -> ${newStock} (Reservado: ${itemQuantity})`);
         calculatedTotal += realPrice * itemQuantity;
         secureItems.push({
           ...item,
@@ -982,7 +1043,7 @@ async function startServer() {
         INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-      await db.execute(query, [
+      await connection.execute(query, [
         orderId,
         userId || "anonymous",
         payerName || "N\xE3o informado",
@@ -998,12 +1059,15 @@ async function startServer() {
         mp_qr_code
       ]);
       const itemQuery = `
-        INSERT INTO order_items (order_id, product_name, quantity, price, image, color, size)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO order_items (order_id, product_id, product_name, quantity, price, image, color, size)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
       for (const item of secureItems) {
-        await db.execute(itemQuery, [orderId, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
+        await connection.execute(itemQuery, [orderId, item.id, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
       }
+      await connection.commit();
+      connection.release();
+      console.log(`[CHECKOUT] Pedido ${orderId} criado com sucesso. Estoque reservado.`);
       res.status(201).json({
         success: true,
         orderId,
@@ -1011,6 +1075,11 @@ async function startServer() {
         redirectUrl
       });
     } catch (err) {
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+      }
+      connection.release();
       console.error("Erro no checkout:", err);
       res.status(500).json({ message: "Erro processando pedido de checkout", error: err.message });
     }
@@ -1027,12 +1096,18 @@ async function startServer() {
           const paymentData = await payment.get({ id: mpPaymentId });
           const mpStatus = paymentData.status;
           console.log(`[MP WEBHOOK] Pagamento ${mpPaymentId} => Status: ${mpStatus}`);
+          const [prevOrders] = await db.execute("SELECT id, payment_status FROM orders WHERE mp_id = ?", [mpPaymentId]);
+          const prevStatus = prevOrders.length > 0 ? prevOrders[0].payment_status : null;
+          const orderId = prevOrders.length > 0 ? prevOrders[0].id : null;
           await db.execute("UPDATE orders SET payment_status = ? WHERE mp_id = ?", [mpStatus, mpPaymentId]);
           if (mpStatus === "approved") {
             await db.execute("UPDATE orders SET status = 'processando' WHERE mp_id = ? AND status = 'pendente'", [mpPaymentId]);
           }
-          if (mpStatus === "cancelled" || mpStatus === "rejected") {
+          if ((mpStatus === "cancelled" || mpStatus === "rejected") && prevStatus !== "cancelled" && prevStatus !== "rejected") {
             await db.execute("UPDATE orders SET status = 'cancelado' WHERE mp_id = ?", [mpPaymentId]);
+            if (orderId) {
+              await restoreStockForOrder(orderId);
+            }
           }
         }
       }
@@ -1061,6 +1136,9 @@ async function startServer() {
           } else if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
             await db.execute("UPDATE orders SET payment_status = ?, status = 'cancelado' WHERE id = ?", [paymentData.status, id]);
             currentStatus = paymentData.status;
+            if (order.payment_status !== "cancelled" && order.payment_status !== "rejected") {
+              await restoreStockForOrder(id);
+            }
           }
         } catch (mpErr) {
           console.error("Erro ao verificar status MP em tempo real:", mpErr);

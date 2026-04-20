@@ -442,7 +442,32 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-4 py-2">
+                <div className="flex items-center gap-4 py-2 flex-wrap">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={editForm.isPresale || false}
+                      onChange={(e) => setEditForm({...editForm, isPresale: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4 bg-suopes-gray rounded-full peer peer-checked:bg-suopes-gold relative transition-colors">
+                      <div className={`absolute top-1 left-1 w-2 h-2 bg-white rounded-full transition-transform ${editForm.isPresale ? "translate-x-4" : ""}`} />
+                    </div>
+                    <span className="text-[10px] font-mono text-suopes-muted uppercase">Pré-Venda</span>
+                  </label>
+                  
+                  {editForm.isPresale && (
+                    <input 
+                      type="text"
+                      placeholder="Data envio (Ex: 15/06)"
+                      value={editForm.presaleDate || ""}
+                      onChange={(e) => setEditForm({...editForm, presaleDate: e.target.value})}
+                      className="bg-suopes-black border border-suopes-gray p-1 px-3 text-[10px] font-mono text-suopes-gold outline-none w-48"
+                    />
+                  )}
+
+                  <div className="w-[1px] h-6 bg-suopes-gray mx-2" />
+
                   <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Status Geral:</label>
                   <button
                     onClick={() => setEditForm({...editForm, inStock: !editForm.inStock})}
@@ -465,13 +490,20 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   <span className="text-suopes-muted">/ {product.sku}</span>
                 </span>
                 <div className="flex flex-col gap-1 mb-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-4xl md:text-5xl font-black">{product.name || "EQUIPAMENTO SEM NOME"}</h1>
-                    {!product.inStock && (
+                    {product.isPresale ? (
+                      <span className="bg-suopes-gold text-black font-bold text-[10px] font-mono px-3 py-1 tracking-widest">PRÉ-VENDA</span>
+                    ) : !product.inStock && (
                       <span className="bg-suopes-red text-white text-[10px] font-mono px-3 py-1 tracking-widest">ESGOTADO</span>
                     )}
                   </div>
-                  {product.inStock && (
+                  {product.isPresale && product.presaleDate && (
+                    <span className="text-[10px] font-mono text-suopes-gold tracking-widest">
+                      ENVIO COLETIVO PREVISTO A PARTIR DE: {product.presaleDate}
+                    </span>
+                  )}
+                  {product.inStock && !product.isPresale && (
                     <span className="text-[10px] font-mono text-suopes-gold tracking-widest">
                       {product.stockQuantity !== undefined ? product.stockQuantity : 10} {product.stockQuantity === 1 ? 'DISPONÍVEL' : 'DISPONÍVEIS'}
                     </span>
@@ -792,6 +824,17 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   </AnimatePresence>
                 </div>
               </div>
+            </div>
+          )}
+
+          {!isEditing && product.isPresale && (
+            <div className="mb-8 border border-suopes-gold bg-suopes-gold/10 p-6">
+              <h3 className="text-sm font-black text-suopes-gold uppercase mb-3 flex items-center gap-2">
+                <AlertCircle size={16} /> COMO FUNCIONA A PRÉ-VENDA?
+              </h3>
+              <p className="text-[10px] font-mono text-white/80 leading-relaxed uppercase">
+                Você garante seu item de forma antecipada. A produção e envio não são imediatos. Todo o lote da pré-venda será finalizado em nosso quartel general e enviado de forma conjunta para todos os clientes a partir de: <strong>{product.presaleDate || "DATA A SER DEFINIDA"}</strong>. Com sua compra confirmada, seu equipamento já repousa garantido conosco aguardando o momento tático de despache.
+              </p>
             </div>
           )}
 

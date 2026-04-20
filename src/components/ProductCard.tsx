@@ -31,7 +31,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             </span>
           ))}
         </div>
-        {!product.inStock && (
+        {product.isPresale ? (
+          <div className="absolute top-4 right-4 bg-suopes-gold px-2 py-1 text-[8px] font-mono tracking-widest text-suopes-black font-bold">
+            PRÉ-VENDA
+          </div>
+        ) : !product.inStock && (
           <div className="absolute top-4 right-4 bg-suopes-red px-2 py-1 text-[8px] font-mono tracking-widest text-white border border-suopes-red/50">
             ESGOTADO
           </div>
@@ -45,7 +49,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
               }}
               className="btn-suopes scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2"
             >
-              <Plus size={16} /> ADICIONAR AO CARRINHO
+              <Plus size={16} /> {product.isPresale ? "GARANTIR PRÉ-VENDA" : "ADICIONAR AO CARRINHO"}
             </button>
           ) : (
             <span 

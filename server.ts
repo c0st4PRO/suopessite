@@ -163,6 +163,8 @@ async function initializeDatabase() {
         in_stock TINYINT(1) DEFAULT 1,
         stock_quantity INT DEFAULT 10,
         featured TINYINT(1) DEFAULT 0,
+        is_presale TINYINT(1) DEFAULT 0,
+        presale_date VARCHAR(255) DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -175,6 +177,8 @@ async function initializeDatabase() {
       "ALTER TABLE products ADD COLUMN features TEXT",
       "ALTER TABLE products ADD COLUMN care TEXT",
       "ALTER TABLE products ADD COLUMN stock_quantity INT DEFAULT 10",
+      "ALTER TABLE products ADD COLUMN is_presale TINYINT(1) DEFAULT 0",
+      "ALTER TABLE products ADD COLUMN presale_date VARCHAR(255) DEFAULT NULL",
       "ALTER TABLE order_items ADD COLUMN product_id VARCHAR(255)",
     ];
     for (const sql of newColumns) {
@@ -776,6 +780,8 @@ async function startServer() {
           features: p.features || null,
           care: p.care || null,
           stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
+          isPresale: p.is_presale === 1,
+          presaleDate: p.presale_date || null,
           featured: p.featured === 1
         };
       });
@@ -788,7 +794,7 @@ async function startServer() {
 
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care, stockQuantity } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care, stockQuantity, isPresale, presaleDate } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
@@ -801,8 +807,8 @@ async function startServer() {
       const autoSku = sku && sku.trim() !== '' ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
 
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, stock_quantity, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, finalInStock, finalStockQuantity, autoSku]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, stock_quantity, sku, is_presale, presale_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, finalInStock, finalStockQuantity, autoSku, isPresale ? 1 : 0, presaleDate || null]
       );
       res.json({ id, sku: autoSku, ...req.body, stockQuantity: finalStockQuantity, inStock: finalInStock === 1 });
     } catch (err) {
@@ -814,7 +820,7 @@ async function startServer() {
   app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku, stockQuantity } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku, stockQuantity, isPresale, presaleDate } = req.body;
       
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
@@ -823,8 +829,8 @@ async function startServer() {
       const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, stock_quantity = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, finalInStock, finalStockQuantity, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, stock_quantity = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ?, is_presale = ?, presale_date = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, finalInStock, finalStockQuantity, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, isPresale ? 1 : 0, presaleDate || null, id]
       );
 
       // Retorna o produto atualizado para o frontend
@@ -846,6 +852,8 @@ async function startServer() {
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
           hasSizes: p.has_sizes === 1,
           stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
+          isPresale: p.is_presale === 1,
+          presaleDate: p.presale_date || null,
           featured: p.featured === 1
         });
       } else {
