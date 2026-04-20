@@ -16,6 +16,12 @@ export function Home({ onAddToCart }: HomeProps) {
   const [booting, setBooting] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("TODOS");
+  
+  // New Filters
+  const [selectedColor, setSelectedColor] = useState("");
+  const [selectedSize, setSelectedSize] = useState("");
+  const [sortPrice, setSortPrice] = useState(""); // "" | "asc" | "desc"
+  const [stockFilter, setStockFilter] = useState(""); // "" | "mais" | "menos" | "esgotados"
 
   useEffect(() => {
     const timer = setTimeout(() => setBooting(false), 2000);
@@ -59,7 +65,10 @@ export function Home({ onAddToCart }: HomeProps) {
     "LINHA ESPECIAL"
   ];
 
-  const filteredProducts = products.filter(p => {
+  const allColors = Array.from(new Set(products.flatMap(p => p.colors?.map(c => c.name) || []))).filter(Boolean) as string[];
+  const allSizes = Array.from(new Set(products.flatMap(p => p.sizes || []))).filter(Boolean) as string[];
+
+  let filteredProducts = products.filter(p => {
     if (!p) return false;
     const productCategories = (p.category || "").split(",").map(c => c.trim()).filter(Boolean);
     const name = p.name || "S/N";
@@ -68,7 +77,30 @@ export function Home({ onAddToCart }: HomeProps) {
     const matchesCategory = selectedCategory === "TODOS" || productCategories.includes(selectedCategory);
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    
+    const matchesColor = selectedColor === "" || (p.colors && p.colors.some(c => c.name === selectedColor));
+    const matchesSize = selectedSize === "" || (p.sizes && p.sizes.includes(selectedSize));
+
+    let matchesStock = true;
+    if (stockFilter === "esgotados") {
+      matchesStock = !p.inStock;
+    } else if (stockFilter === "mais" || stockFilter === "menos") {
+      // both means it must be in stock
+      matchesStock = p.inStock;
+    }
+
+    return matchesCategory && matchesSearch && matchesColor && matchesSize && matchesStock;
+  });
+
+  // Sort logic
+  filteredProducts = filteredProducts.sort((a, b) => {
+    if (sortPrice === "asc") return (Number(a.price) || 0) - (Number(b.price) || 0);
+    if (sortPrice === "desc") return (Number(b.price) || 0) - (Number(a.price) || 0);
+    
+    if (stockFilter === "mais") return (b.stockQuantity || 0) - (a.stockQuantity || 0);
+    if (stockFilter === "menos") return (a.stockQuantity || 0) - (b.stockQuantity || 0);
+
+    return 0;
   });
 
   if (booting) {
@@ -235,23 +267,125 @@ export function Home({ onAddToCart }: HomeProps) {
           </div>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="aspect-[4/5] bg-suopes-gray animate-pulse" />
-            ))}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar */}
+          <div className="w-full lg:w-1/4 flex flex-col gap-8">
+            <div className="bg-suopes-gray/10 border border-suopes-gray p-6">
+              <h3 className="text-xl font-bold mb-4 border-b border-suopes-gray pb-2">FILTROS AVANÇADOS</h3>
+              
+              {/* Preço */}
+              <div className="mb-6">
+                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">ORDENAR POR PREÇO</label>
+                <select 
+                  value={sortPrice} 
+                  onChange={(e) => setSortPrice(e.target.value)}
+                  className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+                >
+                  <option value="">Padrão</option>
+                  <option value="asc">Menor ao Maior</option>
+                  <option value="desc">Maior ao Menor</option>
+                </select>
+              </div>
+
+              {/* Estoque */}
+              <div className="mb-6">
+                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">SITUAÇÃO DE ESTOQUE</label>
+                <select 
+                  value={stockFilter} 
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+                >
+                  <option value="">Todos</option>
+                  <option value="mais">Mais Estoque</option>
+                  <option value="menos">Menos Estoque</option>
+                  <option value="esgotados">Esgotados</option>
+                </select>
+              </div>
+
+              {/* Cor */}
+              {allColors.length > 0 && (
+                <div className="mb-6">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">COR</label>
+                  <select 
+                    value={selectedColor} 
+                    onChange={(e) => setSelectedColor(e.target.value)}
+                    className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+                  >
+                    <option value="">Qualquer Cor</option>
+                    {allColors.map(color => (
+                      <option key={color} value={color}>{color.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Tamanho */}
+              {allSizes.length > 0 && (
+                <div className="mb-6">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">TAMANHO</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedSize("")}
+                      className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
+                        selectedSize === "" ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
+                      }`}
+                    >
+                      TD
+                    </button>
+                    {allSizes.map(size => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
+                          selectedSize === size ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setSelectedColor("");
+                  setSelectedSize("");
+                  setSortPrice("");
+                  setStockFilter("");
+                }}
+                className="w-full py-2 border border-suopes-gray text-suopes-muted font-mono text-xs hover:border-suopes-red hover:text-suopes-red transition-all"
+              >
+                LIMPAR FILTROS
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onAddToCart={() => onAddToCart(product)} 
-              />
-            ))}
+
+          {/* Grid de Produtos */}
+          <div className="w-full lg:w-3/4">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="aspect-[4/5] bg-suopes-gray animate-pulse" />
+                ))}
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredProducts.map((product) => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onAddToCart={() => onAddToCart(product)} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 text-suopes-muted font-mono border border-suopes-gray bg-suopes-gray/5">
+                NENHUM EQUIPAMENTO ENCONTRADO COM ESTES FILTROS.
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
 
       {/* Mission Statement */}
