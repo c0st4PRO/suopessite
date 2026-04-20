@@ -12,8 +12,8 @@ export function Admin({ user }: { user: UserType | null }) {
   const [category, setCategory] = useState("VESTUÁRIO");
   const [sku, setSku] = useState("");
   const [description, setDescription] = useState("");
-  const [features, setFeatures] = useState("");
   const [care, setCare] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("0");
   const [hasSizes, setHasSizes] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -319,6 +319,7 @@ export function Admin({ user }: { user: UserType | null }) {
         features,
         care,
         hasSizes,
+        stockQuantity: parseInt(stockQuantity) || 0,
         sizes: hasSizes ? ["P", "M", "G", "GG"] : [], 
         image: imageUrl || "https://picsum.photos/seed/default/800/1000",
       };
@@ -340,6 +341,7 @@ export function Admin({ user }: { user: UserType | null }) {
         setDescription("");
         setFeatures("");
         setCare("");
+        setStockQuantity("0");
         setImageFile(null);
         setImagePreview(null);
         fetchProducts();
@@ -440,6 +442,19 @@ export function Admin({ user }: { user: UserType | null }) {
               onChange={(e) => setPrice(e.target.value)}
               className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
               placeholder="0.00"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Qtd Inicial em Estoque</label>
+            <input 
+              type="number" 
+              min="0"
+              required
+              value={stockQuantity}
+              onChange={(e) => setStockQuantity(e.target.value)}
+              className="w-full bg-suopes-black border border-suopes-gray h-12 px-4 text-sm focus:border-suopes-gold outline-none transition-colors font-mono"
+              placeholder="0"
             />
           </div>
 

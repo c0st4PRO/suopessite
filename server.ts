@@ -779,7 +779,7 @@ async function startServer() {
           hasSizes: p.has_sizes === 1,
           features: p.features || null,
           care: p.care || null,
-          stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
+          stockQuantity: (p.stock_quantity !== null && p.stock_quantity !== undefined) ? p.stock_quantity : 0,
           isPresale: p.is_presale === 1,
           presaleDate: p.presale_date || null,
           featured: p.featured === 1
@@ -799,7 +799,7 @@ async function startServer() {
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
-      const finalStockQuantity = stockQuantity !== undefined ? Number(stockQuantity) : 10;
+      const finalStockQuantity = (stockQuantity !== undefined && stockQuantity !== null) ? Number(stockQuantity) : 0;
       const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       
       // Auto-generador de SKU: Prefixo fixo + Primeiras 3 letras da Categoria + Digitos Aleatórios
@@ -825,7 +825,7 @@ async function startServer() {
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
-      const finalStockQuantity = stockQuantity !== undefined ? Number(stockQuantity) : 10;
+      const finalStockQuantity = (stockQuantity !== undefined && stockQuantity !== null) ? Number(stockQuantity) : 0;
       const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       
       await db.execute(
@@ -851,7 +851,7 @@ async function startServer() {
           colors: Array.isArray(parsedColors) ? parsedColors : [],
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
           hasSizes: p.has_sizes === 1,
-          stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
+          stockQuantity: (p.stock_quantity !== null && p.stock_quantity !== undefined) ? p.stock_quantity : 0,
           isPresale: p.is_presale === 1,
           presaleDate: p.presale_date || null,
           featured: p.featured === 1

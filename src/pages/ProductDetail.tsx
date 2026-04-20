@@ -58,7 +58,7 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
             sizes: found.sizes || [],
             hasSizes: found.hasSizes || false,
             inStock: found.inStock !== undefined ? found.inStock : true,
-            stockQuantity: found.stockQuantity !== undefined ? found.stockQuantity : 10
+            stockQuantity: found.stockQuantity !== undefined ? found.stockQuantity : 0
           };
           setProduct(productWithDefaults);
           setEditForm(productWithDefaults);
