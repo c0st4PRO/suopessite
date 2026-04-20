@@ -104,6 +104,7 @@ export function Home({ onAddToCart }: HomeProps) {
 
     return 0;
   });
+  const [showFilters, setShowFilters] = useState(false);
 
   if (booting) {
     return (
@@ -271,97 +272,118 @@ export function Home({ onAddToCart }: HomeProps) {
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
-          <div className="w-full lg:w-1/4 flex flex-col gap-8">
-            <div className="bg-suopes-gray/10 border border-suopes-gray p-6">
-              <h3 className="text-xl font-bold mb-4 border-b border-suopes-gray pb-2">FILTROS AVANÇADOS</h3>
-              
-              {/* Preço */}
-              <div className="mb-6">
-                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">ORDENAR POR PREÇO</label>
-                <select 
-                  value={sortPrice} 
-                  onChange={(e) => setSortPrice(e.target.value)}
-                  className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+          <div className="w-full lg:w-1/4 flex flex-col gap-4">
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-[10px] font-mono tracking-[0.3em] text-suopes-muted hover:text-suopes-gold transition-colors group mb-2"
+            >
+              <SlidersHorizontal size={12} className={showFilters ? "text-suopes-gold" : "text-suopes-muted group-hover:text-suopes-gold"} />
+              {showFilters ? "[ OCULTAR_FILTROS ]" : "[ FILTRAGEM_AVANÇADA ]"}
+            </button>
+
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, overflow: "hidden" }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="bg-suopes-gray/10 border border-suopes-gray p-6 mb-4"
                 >
-                  <option value="">Padrão</option>
-                  <option value="asc">Menor ao Maior</option>
-                  <option value="desc">Maior ao Menor</option>
-                </select>
-              </div>
-
-              {/* Estoque */}
-              <div className="mb-6">
-                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">SITUAÇÃO DE ESTOQUE</label>
-                <select 
-                  value={stockFilter} 
-                  onChange={(e) => setStockFilter(e.target.value)}
-                  className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
-                >
-                  <option value="">Todos</option>
-                  <option value="mais">Mais Estoque</option>
-                  <option value="menos">Menos Estoque</option>
-                  <option value="esgotados">Esgotados</option>
-                  <option value="presale">Pré-Venda</option>
-                </select>
-              </div>
-
-              {/* Cor */}
-              {allColors.length > 0 && (
-                <div className="mb-6">
-                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">COR</label>
-                  <select 
-                    value={selectedColor} 
-                    onChange={(e) => setSelectedColor(e.target.value)}
-                    className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
-                  >
-                    <option value="">Qualquer Cor</option>
-                    {allColors.map(color => (
-                      <option key={color} value={color}>{color.toUpperCase()}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Tamanho */}
-              {allSizes.length > 0 && (
-                <div className="mb-6">
-                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">TAMANHO</label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setSelectedSize("")}
-                      className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
-                        selectedSize === "" ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
-                      }`}
+                  <h3 className="text-xl font-bold mb-4 border-b border-suopes-gray pb-2 uppercase text-[14px] tracking-tight">Filtros Avançados</h3>
+                  
+                  {/* Preço */}
+                  <div className="mb-6">
+                    <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">ORDENAR POR PREÇO</label>
+                    <select 
+                      value={sortPrice} 
+                      onChange={(e) => setSortPrice(e.target.value)}
+                      className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
                     >
-                      TD
-                    </button>
-                    {allSizes.map(size => (
-                      <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
-                        className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
-                          selectedSize === size ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
-                        }`}
-                      >
-                        {size}
-                      </button>
-                    ))}
+                      <option value="">Padrão</option>
+                      <option value="asc">Menor ao Maior</option>
+                      <option value="desc">Maior ao Menor</option>
+                    </select>
                   </div>
-                </div>
-              )}
 
-              <button
-                onClick={() => {
-                  setSelectedColor("");
-                  setSelectedSize("");
-                  setSortPrice("");
-                  setStockFilter("");
-                }}
-                className="w-full py-2 border border-suopes-gray text-suopes-muted font-mono text-xs hover:border-suopes-red hover:text-suopes-red transition-all"
-              >
-                LIMPAR FILTROS
-              </button>
-            </div>
+                  {/* Estoque */}
+                  <div className="mb-6">
+                    <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">SITUAÇÃO DE ESTOQUE</label>
+                    <select 
+                      value={stockFilter} 
+                      onChange={(e) => setStockFilter(e.target.value)}
+                      className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+                    >
+                      <option value="">Todos</option>
+                      <option value="mais">Mais Estoque</option>
+                      <option value="menos">Menos Estoque</option>
+                      <option value="esgotados">Esgotados</option>
+                      <option value="presale">Pré-Venda</option>
+                    </select>
+                  </div>
+
+                  {/* Cor */}
+                  {allColors.length > 0 && (
+                    <div className="mb-6">
+                      <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">COR</label>
+                      <select 
+                        value={selectedColor} 
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                        className="w-full bg-suopes-black border border-suopes-gray p-2 text-sm text-suopes-white outline-none focus:border-suopes-gold font-mono"
+                      >
+                        <option value="">Qualquer Cor</option>
+                        {allColors.map(color => (
+                          <option key={color} value={color}>{color.toUpperCase()}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Tamanho */}
+                  {allSizes.length > 0 && (
+                    <div className="mb-6">
+                      <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">TAMANHO</label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setSelectedSize("")}
+                          className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
+                            selectedSize === "" ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
+                          }`}
+                        >
+                          TD
+                        </button>
+                        {allSizes.map(size => (
+                          <button
+                            key={size}
+                            onClick={() => setSelectedSize(size)}
+                            className={`px-3 py-1 text-xs font-mono tracking-widest border transition-all ${
+                              selectedSize === size ? "bg-suopes-gold border-suopes-gold text-suopes-black" : "border-suopes-gray text-suopes-muted hover:border-suopes-gold"
+                            }`}
+                          >
+                            {size}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reset Button */}
+                  {(sortPrice || stockFilter || selectedColor || selectedSize) && (
+                    <button 
+                      onClick={() => {
+                        setSortPrice("");
+                        setStockFilter("");
+                        setSelectedColor("");
+                        setSelectedSize("");
+                      }}
+                      className="w-full py-2 bg-suopes-red/10 border border-suopes-red/30 text-suopes-red text-[10px] font-mono uppercase tracking-[0.2em] hover:bg-suopes-red hover:text-white transition-all mt-2"
+                    >
+                      LIMPAR_FILTROS
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Grid de Produtos */}
