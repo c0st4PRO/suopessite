@@ -105,9 +105,20 @@ async function initializeDatabase() {
         customer_phone VARCHAR(50),
         mp_id VARCHAR(255),
         mp_qr_code_base64 LONGTEXT,
-        mp_qr_code TEXT
+        mp_qr_code TEXT,
+        coupon_code VARCHAR(50) DEFAULT NULL,
+        coupon_discount DECIMAL(10,2) DEFAULT 0,
+        tracking_code VARCHAR(100) DEFAULT NULL,
+        carrier VARCHAR(100) DEFAULT NULL
       );
     `);
+    
+    // Migrações para colunas de cupom e rastreio em bancos existentes
+    try { await db.execute("ALTER TABLE orders ADD COLUMN coupon_code VARCHAR(50) DEFAULT NULL"); } catch(e) {}
+    try { await db.execute("ALTER TABLE orders ADD COLUMN coupon_discount DECIMAL(10,2) DEFAULT 0"); } catch(e) {}
+    try { await db.execute("ALTER TABLE orders ADD COLUMN tracking_code VARCHAR(100) DEFAULT NULL"); } catch(e) {}
+    try { await db.execute("ALTER TABLE orders ADD COLUMN carrier VARCHAR(100) DEFAULT NULL"); } catch(e) {}
+
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -1939,10 +1950,10 @@ async function startServer() {
           date: formattedDate,
           status: order.status,
           paymentStatus: order.payment_status,
-          total: order.total,
           shippingCost: order.shipping_cost,
           items: mappedItems,
-          trackingCode: null
+          trackingCode: order.tracking_code,
+          carrier: order.carrier
         });
       }
 
@@ -1987,7 +1998,9 @@ async function startServer() {
             image: i.image,
             color: i.color,
             size: i.size
-          }))
+          })),
+          trackingCode: order.tracking_code,
+          carrier: order.carrier
         });
       }
       res.json(ordersWithItems);
@@ -2000,17 +2013,43 @@ async function startServer() {
 
   app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, trackingCode, carrier } = req.body;
     const validStatuses = ["pendente", "processando", "enviado", "concluido", "cancelado"];
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({ message: `Status inválido. Use: ${validStatuses.join(", ")}` });
-    }
+    
     try {
-      const [result]: any = await db.execute("UPDATE orders SET status = ? WHERE id = ?", [status, id]);
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Status inválido. Use: ${validStatuses.join(", ")}` });
+      }
+
+      let query = "UPDATE orders SET ";
+      let params: any[] = [];
+      let updates = [];
+
+      if (status) {
+        updates.push("status = ?");
+        params.push(status);
+      }
+      if (trackingCode !== undefined) {
+        updates.push("tracking_code = ?");
+        params.push(trackingCode);
+      }
+      if (carrier !== undefined) {
+        updates.push("carrier = ?");
+        params.push(carrier);
+      }
+
+      if (updates.length === 0) return res.status(400).json({ message: "Nenhum campo para atualizar." });
+
+      query += updates.join(", ") + " WHERE id = ?";
+      params.push(id);
+
+      const [result]: any = await db.execute(query, params);
+      
       if (result.affectedRows === 0) return res.status(404).json({ message: "Pedido não encontrado." });
-      res.json({ success: true, message: `Status do pedido ${id} atualizado para: ${status.toUpperCase()}` });
+      res.json({ success: true, message: `Pedido ${id} atualizado com sucesso.` });
     } catch (err) {
-      res.status(500).json({ message: "Erro ao atualizar status." });
+      console.error(err);
+      res.status(500).json({ message: "Erro ao atualizar pedido." });
     }
   });
 

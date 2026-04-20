@@ -185,7 +185,7 @@ export function Admin({ user }: { user: UserType | null }) {
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const handleStatusChange = async (orderId: string, newStatus: string, trackingCode?: string, carrier?: string) => {
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: "PATCH",
@@ -193,7 +193,11 @@ export function Admin({ user }: { user: UserType | null }) {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${user?.token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ 
+          status: newStatus,
+          trackingCode: trackingCode,
+          carrier: carrier
+        })
       });
       if (res.ok) {
         fetchAdminOrders();
@@ -1122,26 +1126,73 @@ export function Admin({ user }: { user: UserType | null }) {
                           </div>
                         </div>
 
-                        {/* CONTROLE DE STATUS */}
-                        <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-suopes-gray">
-                          <h4 className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest flex items-center gap-2">
-                            <Truck size={12} /> ATUALIZAR STATUS:
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {['pendente', 'processando', 'enviado', 'concluido', 'cancelado'].map(s => (
-                              <button
-                                key={s}
-                                onClick={() => handleStatusChange(order.id, s)}
-                                disabled={order.status === s}
-                                className={`px-4 py-2 text-[9px] font-mono uppercase tracking-widest border transition-all ${
-                                  order.status === s 
-                                    ? `${getStatusColor(s)} font-bold cursor-default` 
-                                    : 'border-suopes-gray text-suopes-muted hover:text-white hover:border-white'
-                                }`}
-                              >
-                                {getStatusLabel(s)}
-                              </button>
-                            ))}
+                        {/* CONTROLE DE RASTREIO E STATUS */}
+                        <div className="pt-4 border-t border-suopes-gray space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block">Código de Rastreio</label>
+                              <div className="flex gap-2">
+                                <input 
+                                  type="text"
+                                  defaultValue={order.trackingCode || ''}
+                                  id={`tracking-${order.id}`}
+                                  placeholder="EX: AA123456789BR"
+                                  className="flex-grow bg-suopes-black border border-suopes-gray h-10 px-3 text-xs font-mono focus:border-suopes-gold outline-none"
+                                />
+                                <button 
+                                  onClick={() => {
+                                    const code = (document.getElementById(`tracking-${order.id}`) as HTMLInputElement).value;
+                                    handleStatusChange(order.id, order.status, code, order.carrier);
+                                  }}
+                                  className="px-4 bg-suopes-gray/20 border border-suopes-gray text-[9px] font-mono uppercase tracking-widest hover:bg-suopes-gold hover:text-black transition-all"
+                                >
+                                  SALVAR
+                                </button>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block">Transportadora</label>
+                              <div className="flex gap-2">
+                                <input 
+                                  type="text"
+                                  defaultValue={order.carrier || ''}
+                                  id={`carrier-${order.id}`}
+                                  placeholder="EX: CORREIOS"
+                                  className="flex-grow bg-suopes-black border border-suopes-gray h-10 px-3 text-xs font-mono focus:border-suopes-gold outline-none"
+                                />
+                                <button 
+                                  onClick={() => {
+                                    const carr = (document.getElementById(`carrier-${order.id}`) as HTMLInputElement).value;
+                                    handleStatusChange(order.id, order.status, order.trackingCode, carr);
+                                  }}
+                                  className="px-4 bg-suopes-gray/20 border border-suopes-gray text-[9px] font-mono uppercase tracking-widest hover:bg-suopes-gold hover:text-black transition-all"
+                                >
+                                  SALVAR
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-4">
+                            <h4 className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest flex items-center gap-2">
+                              <Truck size={12} /> ATUALIZAR STATUS:
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {['pendente', 'processando', 'enviado', 'concluido', 'cancelado'].map(s => (
+                                <button
+                                  key={s}
+                                  onClick={() => handleStatusChange(order.id, s, order.trackingCode, order.carrier)}
+                                  disabled={order.status === s}
+                                  className={`px-4 py-2 text-[9px] font-mono uppercase tracking-widest border transition-all ${
+                                    order.status === s 
+                                      ? `${getStatusColor(s)} font-bold cursor-default` 
+                                      : 'border-suopes-gray text-suopes-muted hover:text-white hover:border-white'
+                                  }`}
+                                >
+                                  {getStatusLabel(s)}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>

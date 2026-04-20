@@ -34,6 +34,32 @@ import { useState, useEffect } from "react";
 export function ClientOrders({ user }: { user: User | null }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingResult, setTrackingResult] = useState<any>(null);
+  const [trackingCodeInput, setTrackingCodeInput] = useState("");
+
+  const trackPackage = async (code: string) => {
+    if (!code) return;
+    setTrackingLoading(true);
+    setTrackingResult(null);
+    try {
+      // Usando Linketrack (API Pública demo para Correios e outros)
+      const userTrack = "teste";
+      const tokenTrack = "1abcd";
+      const res = await fetch(`https://api.linketrack.com/track/json?user=${userTrack}&token=${tokenTrack}&codigo=${code}`);
+      const data = await res.json();
+      if (data && data.eventos) {
+        setTrackingResult(data);
+      } else {
+        alert("Nenhum evento encontrado para este código.");
+      }
+    } catch (err) {
+      console.error("Erro ao rastrear", err);
+      alert("Não foi possível localizar este objeto no momento. Verifique o código.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
 
   useEffect(() => {
     let interval: any;
@@ -90,6 +116,70 @@ export function ClientOrders({ user }: { user: User | null }) {
         </header>
 
         <div className="space-y-8">
+          {/* TRACKING TOOL BOX */}
+          <section id="rastreio" className="bg-suopes-gray/5 border border-suopes-gray p-8 mb-12">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Truck size={20} className="text-suopes-gold" /> RASTREIO RÁPIDO
+            </h2>
+            <p className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest mb-6">Insira qualquer código de rastreio para verificar o status em tempo real</p>
+            
+            <div className="flex flex-col md:flex-row gap-3">
+              <input 
+                type="text"
+                placeholder="EX: AA123456789BR"
+                value={trackingCodeInput}
+                onChange={(e) => setTrackingCodeInput(e.target.value.toUpperCase())}
+                className="flex-grow bg-suopes-black border border-suopes-gray h-12 px-4 text-sm font-mono focus:border-suopes-gold outline-none text-white uppercase placeholder:text-suopes-muted/30"
+              />
+              <button 
+                onClick={() => trackPackage(trackingCodeInput)}
+                disabled={trackingLoading || !trackingCodeInput}
+                className="btn-suopes px-8 h-12 disabled:opacity-50"
+              >
+                {trackingLoading ? "LOCALIZANDO..." : "RASTREAR AGORA"}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {trackingResult && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="mt-8 border-t border-suopes-gray pt-6 overflow-hidden"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-mono text-suopes-gold uppercase tracking-[0.2em]">CÓDIGO: {trackingResult.codigo} / ÚLTIMA ATUALIZAÇÃO: {trackingResult.ultimo}</span>
+                    <button onClick={() => setTrackingResult(null)} className="text-suopes-muted hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono">
+                      [ FECHAR ] <X size={14} />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {trackingResult.eventos?.map((evento: any, i: number) => (
+                      <div key={i} className="flex gap-4 relative">
+                        {i < trackingResult.eventos.length - 1 && (
+                          <div className="absolute left-2.5 top-5 w-[1px] h-full bg-suopes-gray/30" />
+                        )}
+                        <div className={`w-5 h-5 rounded-full flex-shrink-0 mt-1 z-10 flex items-center justify-center ${i === 0 ? 'bg-suopes-gold text-suopes-black' : 'bg-suopes-gray/30'}`}>
+                          <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                        </div>
+                        <div className="pb-6">
+                          <p className={`text-xs font-bold uppercase tracking-tight mb-1 ${i === 0 ? 'text-suopes-gold' : 'text-white'}`}>{evento.status}</p>
+                          <p className="text-[10px] text-suopes-muted font-mono">{evento.data} às {evento.hora}</p>
+                          {evento.local && <p className="text-[10px] text-suopes-muted font-mono mt-1 flex items-center gap-1"><MapPin size={10} /> {evento.local}</p>}
+                          {evento.subStatus && evento.subStatus.map((sub: string, sidx: number) => (
+                            <p key={sidx} className="text-[10px] text-suopes-muted italic mt-1">{sub}</p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
           {loading ? (
             <div className="text-center text-suopes-gold py-10 font-mono tracking-widest text-xs">
               Sincronizando banco de dados...
@@ -180,11 +270,21 @@ export function ClientOrders({ user }: { user: User | null }) {
                       <MapPin size={18} className="text-suopes-gold" />
                       <div>
                         <span className="text-[10px] font-mono text-suopes-muted uppercase block">Código de Rastreio</span>
-                        <span className="text-xs font-bold text-white font-mono">{order.trackingCode}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white font-mono">{order.trackingCode}</span>
+                          {order.carrier && <span className="text-[8px] border border-suopes-gray px-1 text-suopes-muted font-mono uppercase">{order.carrier}</span>}
+                        </div>
                       </div>
                     </div>
-                    <button className="text-[10px] font-mono text-suopes-gold hover:text-white transition-colors flex items-center gap-2 uppercase tracking-widest">
-                      Rastrear Objeto <ChevronRight size={14} />
+                    <button 
+                      onClick={() => {
+                        setTrackingCodeInput(order.trackingCode!);
+                        trackPackage(order.trackingCode!);
+                        document.getElementById('rastreio')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="text-[10px] font-mono text-suopes-gold hover:text-white transition-colors flex items-center gap-2 uppercase tracking-widest"
+                    >
+                      Ver Status Real <ChevronRight size={14} />
                     </button>
                   </div>
                 )}
