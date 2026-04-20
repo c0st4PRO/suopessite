@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect, useRef, MouseEvent, FormEvent } from "react";
 import { Product, ProductColor, User } from "../types";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, Shield, Truck, RotateCcw, Plus, Minus, Edit3, Save, X, Camera, Search, Trash2, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, Shield, Truck, RotateCcw, Plus, Minus, Edit3, Save, X, Camera, Search, Trash2, Check, ChevronRight, AlertCircle } from "lucide-react";
 
 interface ProductDetailProps {
   onAddToCart: (product: Product & { selectedColor?: string; selectedSize?: string }) => void;
