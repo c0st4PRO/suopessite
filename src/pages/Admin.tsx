@@ -1,7 +1,7 @@
 import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck } from "lucide-react";
+import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck, Tag, ToggleLeft, ToggleRight, Clock } from "lucide-react";
 import { Product, User as UserType } from "../types";
 
 export function Admin({ user }: { user: UserType | null }) {
@@ -12,6 +12,7 @@ export function Admin({ user }: { user: UserType | null }) {
   const [category, setCategory] = useState("VESTUÁRIO");
   const [sku, setSku] = useState("");
   const [description, setDescription] = useState("");
+  const [features, setFeatures] = useState("");
   const [care, setCare] = useState("");
   const [stockQuantity, setStockQuantity] = useState("0");
   const [hasSizes, setHasSizes] = useState(false);
@@ -22,7 +23,7 @@ export function Admin({ user }: { user: UserType | null }) {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"inventory" | "marketing" | "demanda" | "logistica">("inventory");
+  const [activeTab, setActiveTab] = useState<"inventory" | "marketing" | "demanda" | "logistica" | "cupons">("inventory");
 
   // LOGÍSTICA STATE
   const [adminOrders, setAdminOrders] = useState<any[]>([]);
@@ -39,6 +40,17 @@ export function Admin({ user }: { user: UserType | null }) {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // CUPONS STATE
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [couponForm, setCouponForm] = useState({
+    code: "", type: "percentage" as "percentage" | "fixed" | "free_shipping",
+    value: "", minPurchase: "", maxDiscount: "", maxUses: "", maxUsesPerUser: "",
+    startsAt: "", expiresAt: ""
+  });
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
+
   useEffect(() => {
     // Escudo Visual de Redirecionamento
     if (!user || user.role !== 'admin') {
@@ -49,11 +61,12 @@ export function Admin({ user }: { user: UserType | null }) {
     fetchProducts();
     if (activeTab === "marketing") fetchSubscribers();
     if (activeTab === "demanda") fetchWaitlist();
+    if (activeTab === "cupons") fetchCoupons();
     
     let interval: any;
     if (activeTab === "logistica") {
       fetchAdminOrders();
-      interval = setInterval(fetchAdminOrders, 5000); // Polling de 5s como solicitado
+      interval = setInterval(fetchAdminOrders, 5000);
     }
     
     return () => clearInterval(interval);
@@ -95,6 +108,80 @@ export function Admin({ user }: { user: UserType | null }) {
       if (res.ok) setAdminOrders(await res.json());
     } catch (err) {
       console.error("Erro ao buscar pedidos:", err);
+    }
+  };
+
+  const fetchCoupons = async () => {
+    try {
+      const res = await fetch("/api/admin/coupons", {
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
+      if (res.ok) setCoupons(await res.json());
+    } catch (err) {
+      console.error("Erro ao buscar cupons:", err);
+    }
+  };
+
+  const handleCreateCoupon = async (e: FormEvent) => {
+    e.preventDefault();
+    setCouponLoading(true);
+    setCouponError("");
+    setCouponSuccess("");
+    try {
+      const res = await fetch("/api/admin/coupons", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
+        body: JSON.stringify({
+          ...couponForm,
+          value: parseFloat(couponForm.value) || 0,
+          minPurchase: parseFloat(couponForm.minPurchase) || 0,
+          maxDiscount: couponForm.maxDiscount ? parseFloat(couponForm.maxDiscount) : null,
+          maxUses: couponForm.maxUses ? parseInt(couponForm.maxUses) : null,
+          maxUsesPerUser: couponForm.maxUsesPerUser ? parseInt(couponForm.maxUsesPerUser) : null,
+          startsAt: couponForm.startsAt || null,
+          expiresAt: couponForm.expiresAt || null
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCouponSuccess("Cupom criado com sucesso!");
+        setCouponForm({ code: "", type: "percentage", value: "", minPurchase: "", maxDiscount: "", maxUses: "", maxUsesPerUser: "", startsAt: "", expiresAt: "" });
+        fetchCoupons();
+      } else {
+        setCouponError(data.message || "Erro ao criar cupom.");
+      }
+    } catch (err) {
+      setCouponError("Erro de conexão.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleToggleCoupon = async (id: number) => {
+    try {
+      await fetch(`/api/admin/coupons/${id}/toggle`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
+      fetchCoupons();
+    } catch (err) {
+      console.error("Erro ao alternar cupom:", err);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir este cupom?")) return;
+    try {
+      await fetch(`/api/admin/coupons/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
+      fetchCoupons();
+    } catch (err) {
+      console.error("Erro ao deletar cupom:", err);
     }
   };
 
@@ -407,6 +494,12 @@ export function Admin({ user }: { user: UserType | null }) {
             onClick={() => setActiveTab('logistica')}
           >
             LOGÍSTICA / PEDIDOS
+          </button>
+          <button 
+            className={`px-8 py-4 whitespace-nowrap border-b-2 transition-all ${activeTab === 'cupons' ? 'border-suopes-gold text-suopes-gold font-bold' : 'border-transparent text-suopes-muted hover:text-white'}`}
+            onClick={() => setActiveTab('cupons')}
+          >
+            CUPONS
           </button>
         </div>
       </div>
@@ -1117,6 +1210,223 @@ export function Admin({ user }: { user: UserType | null }) {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'cupons' && (
+        <div className="space-y-12">
+          <div className="mb-8">
+            <h2 className="text-2xl font-black mb-2 uppercase">Gestão de Cupons</h2>
+            <p className="text-suopes-muted font-mono text-xs uppercase tracking-widest">Criar e Gerenciar Códigos de Desconto ({coupons.length} ativos)</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            {/* Formulário de Criação */}
+            <form onSubmit={handleCreateCoupon} className="lg:col-span-1 space-y-4 bg-suopes-gray/5 border border-suopes-gray p-6">
+              <h3 className="text-sm font-bold uppercase text-suopes-gold flex items-center gap-2 mb-4">
+                <Tag size={16} /> Novo Cupom
+              </h3>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Código</label>
+                <input 
+                  type="text" required
+                  value={couponForm.code}
+                  onChange={(e) => setCouponForm({...couponForm, code: e.target.value.toUpperCase()})}
+                  placeholder="EX: SUOPES10"
+                  className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono uppercase"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Tipo</label>
+                <select 
+                  value={couponForm.type}
+                  onChange={(e) => setCouponForm({...couponForm, type: e.target.value as any})}
+                  className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                >
+                  <option value="percentage">% Porcentagem</option>
+                  <option value="fixed">R$ Valor Fixo</option>
+                  <option value="free_shipping">Frete Grátis</option>
+                </select>
+              </div>
+
+              {couponForm.type !== "free_shipping" && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">
+                    {couponForm.type === "percentage" ? "Desconto (%)" : "Desconto (R$)"}
+                  </label>
+                  <input 
+                    type="number" step="0.01" required
+                    value={couponForm.value}
+                    onChange={(e) => setCouponForm({...couponForm, value: e.target.value})}
+                    placeholder={couponForm.type === "percentage" ? "10" : "25.00"}
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                  />
+                </div>
+              )}
+
+              {couponForm.type === "percentage" && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Desconto Máximo (R$) - Opcional</label>
+                  <input 
+                    type="number" step="0.01"
+                    value={couponForm.maxDiscount}
+                    onChange={(e) => setCouponForm({...couponForm, maxDiscount: e.target.value})}
+                    placeholder="50.00"
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Compra Mínima (R$)</label>
+                <input 
+                  type="number" step="0.01"
+                  value={couponForm.minPurchase}
+                  onChange={(e) => setCouponForm({...couponForm, minPurchase: e.target.value})}
+                  placeholder="0.00"
+                  className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Máx Usos Total</label>
+                  <input 
+                    type="number"
+                    value={couponForm.maxUses}
+                    onChange={(e) => setCouponForm({...couponForm, maxUses: e.target.value})}
+                    placeholder="Ilimitado"
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Máx Por Usuário</label>
+                  <input 
+                    type="number"
+                    value={couponForm.maxUsesPerUser}
+                    onChange={(e) => setCouponForm({...couponForm, maxUsesPerUser: e.target.value})}
+                    placeholder="Ilimitado"
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-sm focus:border-suopes-gold outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Início</label>
+                  <input 
+                    type="datetime-local"
+                    value={couponForm.startsAt}
+                    onChange={(e) => setCouponForm({...couponForm, startsAt: e.target.value})}
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-[10px] focus:border-suopes-gold outline-none font-mono text-suopes-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Expiração</label>
+                  <input 
+                    type="datetime-local"
+                    value={couponForm.expiresAt}
+                    onChange={(e) => setCouponForm({...couponForm, expiresAt: e.target.value})}
+                    className="w-full bg-suopes-black border border-suopes-gray h-10 px-3 text-[10px] focus:border-suopes-gold outline-none font-mono text-suopes-white"
+                  />
+                </div>
+              </div>
+
+              {couponError && (
+                <div className="flex items-center gap-2 text-suopes-red text-[10px] font-mono">
+                  <AlertCircle size={12} /> {couponError}
+                </div>
+              )}
+              {couponSuccess && (
+                <div className="flex items-center gap-2 text-green-400 text-[10px] font-mono">
+                  <CheckCircle size={12} /> {couponSuccess}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={couponLoading}
+                className="w-full btn-suopes h-12 disabled:opacity-50"
+              >
+                {couponLoading ? "CRIANDO..." : "CRIAR CUPOM"}
+              </button>
+            </form>
+
+            {/* Lista de Cupons */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-sm font-bold uppercase text-white mb-4">Cupons Cadastrados</h3>
+              {coupons.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-suopes-gray">
+                  <p className="text-suopes-muted font-mono text-xs uppercase">Nenhum cupom cadastrado.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {coupons.map((c: any) => {
+                    const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
+                    const isExhausted = c.max_uses !== null && c.current_uses >= c.max_uses;
+                    return (
+                      <motion.div 
+                        key={c.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`p-4 border transition-colors ${
+                          !c.active || isExpired || isExhausted
+                            ? "border-suopes-gray/30 bg-suopes-gray/5 opacity-60"
+                            : "border-suopes-gold/30 bg-suopes-gold/5"
+                        }`}
+                      >
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="flex-grow">
+                            <div className="flex items-center gap-3 mb-1">
+                              <span className="text-sm font-mono font-bold text-suopes-gold">{c.code}</span>
+                              <span className={`text-[8px] font-mono px-2 py-0.5 border ${
+                                c.type === 'percentage' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' :
+                                c.type === 'fixed' ? 'text-purple-400 border-purple-400/30 bg-purple-400/10' :
+                                'text-green-400 border-green-400/30 bg-green-400/10'
+                              }`}>
+                                {c.type === 'percentage' ? `${c.value}% OFF` : c.type === 'fixed' ? `R$ ${parseFloat(c.value).toFixed(2)} OFF` : 'FRETE GRÁTIS'}
+                              </span>
+                              {isExpired && <span className="text-[8px] font-mono text-suopes-red">EXPIRADO</span>}
+                              {isExhausted && <span className="text-[8px] font-mono text-suopes-red">ESGOTADO</span>}
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9px] font-mono text-suopes-muted">
+                              <span>Usos: {c.current_uses}{c.max_uses !== null ? `/${c.max_uses}` : '/∞'}</span>
+                              {parseFloat(c.min_purchase) > 0 && <span>Mín: R$ {parseFloat(c.min_purchase).toFixed(2)}</span>}
+                              {c.max_uses_per_user && <span>Máx/user: {c.max_uses_per_user}</span>}
+                              {c.expires_at && (
+                                <span className="flex items-center gap-1">
+                                  <Clock size={10} />
+                                  {new Date(c.expires_at).toLocaleDateString('pt-BR')} {new Date(c.expires_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleToggleCoupon(c.id)}
+                              className={`p-2 transition-colors ${c.active ? 'text-green-400 hover:text-green-300' : 'text-suopes-muted hover:text-white'}`}
+                              title={c.active ? "Desativar" : "Ativar"}
+                            >
+                              {c.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteCoupon(c.id)}
+                              className="p-2 text-suopes-muted hover:text-suopes-red transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

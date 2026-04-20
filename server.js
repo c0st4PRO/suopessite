@@ -180,6 +180,41 @@ async function initializeDatabase() {
       await db.execute("ALTER TABLE gallery ADD COLUMN sort_order INT DEFAULT 0");
     } catch (e) {
     }
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        type ENUM('percentage', 'fixed', 'free_shipping') NOT NULL DEFAULT 'percentage',
+        value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        min_purchase DECIMAL(10,2) DEFAULT 0,
+        max_discount DECIMAL(10,2) DEFAULT NULL,
+        max_uses INT DEFAULT NULL,
+        current_uses INT DEFAULT 0,
+        max_uses_per_user INT DEFAULT NULL,
+        applies_to VARCHAR(255) DEFAULT NULL,
+        active TINYINT(1) DEFAULT 1,
+        starts_at DATETIME DEFAULT NULL,
+        expires_at DATETIME DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS coupon_uses (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        coupon_id INT NOT NULL,
+        user_id VARCHAR(255) NOT NULL,
+        order_id VARCHAR(255),
+        used_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    try {
+      await db.execute("ALTER TABLE orders ADD COLUMN coupon_code VARCHAR(50) DEFAULT NULL");
+    } catch (e) {
+    }
+    try {
+      await db.execute("ALTER TABLE orders ADD COLUMN coupon_discount DECIMAL(10,2) DEFAULT 0");
+    } catch (e) {
+    }
     const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
     try {
       await db.query("ALTER TABLE orders ADD COLUMN customer_cpf VARCHAR(20)");
@@ -688,7 +723,7 @@ async function startServer() {
           hasSizes: p.has_sizes === 1,
           features: p.features || null,
           care: p.care || null,
-          stockQuantity: p.stock_quantity !== void 0 ? p.stock_quantity : 10,
+          stockQuantity: p.stock_quantity !== null && p.stock_quantity !== void 0 ? p.stock_quantity : 0,
           isPresale: p.is_presale === 1,
           presaleDate: p.presale_date || null,
           featured: p.featured === 1
@@ -707,7 +742,7 @@ async function startServer() {
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
-      const finalStockQuantity = stockQuantity !== void 0 ? Number(stockQuantity) : 10;
+      const finalStockQuantity = stockQuantity !== void 0 && stockQuantity !== null ? Number(stockQuantity) : 0;
       const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       let autoCategory = category ? category.split(",")[0].substring(0, 3).toUpperCase() : "GER";
       const autoSku = sku && sku.trim() !== "" ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
@@ -728,7 +763,7 @@ async function startServer() {
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
-      const finalStockQuantity = stockQuantity !== void 0 ? Number(stockQuantity) : 10;
+      const finalStockQuantity = stockQuantity !== void 0 && stockQuantity !== null ? Number(stockQuantity) : 0;
       const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       await db.execute(
         "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, stock_quantity = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ?, is_presale = ?, presale_date = ? WHERE id = ?",
@@ -759,7 +794,7 @@ async function startServer() {
           colors: Array.isArray(parsedColors) ? parsedColors : [],
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
           hasSizes: p.has_sizes === 1,
-          stockQuantity: p.stock_quantity !== void 0 ? p.stock_quantity : 10,
+          stockQuantity: p.stock_quantity !== null && p.stock_quantity !== void 0 ? p.stock_quantity : 0,
           isPresale: p.is_presale === 1,
           presaleDate: p.presale_date || null,
           featured: p.featured === 1
@@ -851,6 +886,131 @@ async function startServer() {
       res.status(500).json({ message: "Erro ao deletar item da galeria" });
     }
   });
+  app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
+    try {
+      const [rows] = await db.execute("SELECT * FROM coupons ORDER BY created_at DESC");
+      res.json(rows);
+    } catch (err) {
+      console.error("Erro ao buscar cupons:", err);
+      res.status(500).json({ message: "Erro ao buscar cupons" });
+    }
+  });
+  app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
+    try {
+      const { code, type, value, minPurchase, maxDiscount, maxUses, maxUsesPerUser, appliesTo, startsAt, expiresAt } = req.body;
+      if (!code || !type) {
+        return res.status(400).json({ message: "C\xF3digo e tipo s\xE3o obrigat\xF3rios." });
+      }
+      const [existing] = await db.execute("SELECT id FROM coupons WHERE code = ?", [code.toUpperCase().trim()]);
+      if (existing.length > 0) {
+        return res.status(409).json({ message: "J\xE1 existe um cupom com este c\xF3digo." });
+      }
+      await db.execute(
+        `INSERT INTO coupons (code, type, value, min_purchase, max_discount, max_uses, max_uses_per_user, applies_to, starts_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          code.toUpperCase().trim(),
+          type,
+          value || 0,
+          minPurchase || 0,
+          maxDiscount || null,
+          maxUses || null,
+          maxUsesPerUser || null,
+          appliesTo || null,
+          startsAt || null,
+          expiresAt || null
+        ]
+      );
+      res.status(201).json({ success: true, message: "Cupom criado com sucesso." });
+    } catch (err) {
+      console.error("Erro ao criar cupom:", err);
+      res.status(500).json({ message: "Erro ao criar cupom" });
+    }
+  });
+  app.patch("/api/admin/coupons/:id/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("UPDATE coupons SET active = NOT active WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erro ao alternar cupom:", err);
+      res.status(500).json({ message: "Erro ao alternar cupom" });
+    }
+  });
+  app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("DELETE FROM coupon_uses WHERE coupon_id = ?", [id]);
+      await db.execute("DELETE FROM coupons WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erro ao deletar cupom:", err);
+      res.status(500).json({ message: "Erro ao deletar cupom" });
+    }
+  });
+  app.post("/api/coupons/validate", authenticateToken, async (req, res) => {
+    try {
+      const { code, subtotal } = req.body;
+      const userId = req.user.id;
+      if (!code) return res.status(400).json({ message: "C\xF3digo do cupom \xE9 obrigat\xF3rio." });
+      const [rows] = await db.execute("SELECT * FROM coupons WHERE code = ?", [code.toUpperCase().trim()]);
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Cupom n\xE3o encontrado." });
+      }
+      const coupon = rows[0];
+      if (!coupon.active) {
+        return res.status(400).json({ message: "Este cupom est\xE1 desativado." });
+      }
+      if (coupon.starts_at && new Date(coupon.starts_at) > /* @__PURE__ */ new Date()) {
+        return res.status(400).json({ message: "Este cupom ainda n\xE3o est\xE1 v\xE1lido." });
+      }
+      if (coupon.expires_at && new Date(coupon.expires_at) < /* @__PURE__ */ new Date()) {
+        return res.status(400).json({ message: "Este cupom j\xE1 expirou." });
+      }
+      if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
+        return res.status(400).json({ message: "Este cupom atingiu o limite m\xE1ximo de usos." });
+      }
+      if (coupon.max_uses_per_user !== null) {
+        const [userUses] = await db.execute(
+          "SELECT COUNT(*) as count FROM coupon_uses WHERE coupon_id = ? AND user_id = ?",
+          [coupon.id, userId]
+        );
+        if (userUses[0].count >= coupon.max_uses_per_user) {
+          return res.status(400).json({ message: "Voc\xEA j\xE1 utilizou este cupom o m\xE1ximo de vezes permitido." });
+        }
+      }
+      const minPurchase = parseFloat(coupon.min_purchase) || 0;
+      if (subtotal < minPurchase) {
+        return res.status(400).json({ message: `Compra m\xEDnima de R$ ${minPurchase.toFixed(2)} necess\xE1ria para este cupom.` });
+      }
+      let discount = 0;
+      let freeShipping = false;
+      if (coupon.type === "percentage") {
+        discount = subtotal * parseFloat(coupon.value) / 100;
+        if (coupon.max_discount !== null) {
+          discount = Math.min(discount, parseFloat(coupon.max_discount));
+        }
+      } else if (coupon.type === "fixed") {
+        discount = parseFloat(coupon.value);
+        discount = Math.min(discount, subtotal);
+      } else if (coupon.type === "free_shipping") {
+        freeShipping = true;
+        discount = 0;
+      }
+      res.json({
+        valid: true,
+        couponId: coupon.id,
+        code: coupon.code,
+        type: coupon.type,
+        discount: parseFloat(discount.toFixed(2)),
+        freeShipping,
+        description: coupon.type === "percentage" ? `${coupon.value}% OFF` : coupon.type === "fixed" ? `R$ ${parseFloat(coupon.value).toFixed(2)} OFF` : "FRETE GR\xC1TIS"
+      });
+    } catch (err) {
+      console.error("Erro ao validar cupom:", err);
+      res.status(500).json({ message: "Erro ao validar cupom." });
+    }
+  });
   app.post("/api/shipping", (req, res) => {
     const { cep, totalAmount } = req.body;
     if (!cep) return res.status(400).json({ message: "CEP obrigat\xF3rio" });
@@ -932,7 +1092,7 @@ async function startServer() {
     }
   }
   app.post("/api/checkout", authenticateToken, async (req, res) => {
-    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
+    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost, couponCode, couponDiscount, couponFreeShipping } = req.body;
     const userId = req.user.id;
     if (!items || !items.length) {
       return res.status(400).json({ message: "Carrinho vazio ou inv\xE1lido" });
@@ -981,7 +1141,12 @@ async function startServer() {
           price: realPrice
         });
       }
-      calculatedTotal += parseFloat(shippingCost || 0);
+      const appliedDiscount = parseFloat(couponDiscount || 0);
+      if (appliedDiscount > 0) {
+        calculatedTotal = Math.max(0, calculatedTotal - appliedDiscount);
+      }
+      const finalShippingCost = couponFreeShipping ? 0 : parseFloat(shippingCost || 0);
+      calculatedTotal += finalShippingCost;
       const orderId = "ORD-" + (/* @__PURE__ */ new Date()).getFullYear() + "-" + Math.floor(1e3 + Math.random() * 9e3);
       let mp_id = null;
       let mp_qr_code_base64 = null;
@@ -1040,8 +1205,8 @@ async function startServer() {
         }
       }
       const query = `
-        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code, coupon_code, coupon_discount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       await connection.execute(query, [
         orderId,
@@ -1049,14 +1214,16 @@ async function startServer() {
         payerName || "N\xE3o informado",
         payerEmail || "N\xE3o informado",
         calculatedTotal,
-        shippingCost || 0,
+        finalShippingCost,
         JSON.stringify(shippingAddress),
         paymentMethod,
         cpf,
         phone,
         mp_id,
         mp_qr_code_base64,
-        mp_qr_code
+        mp_qr_code,
+        couponCode || null,
+        appliedDiscount
       ]);
       const itemQuery = `
         INSERT INTO order_items (order_id, product_id, product_name, quantity, price, image, color, size)
@@ -1067,6 +1234,19 @@ async function startServer() {
       }
       await connection.commit();
       connection.release();
+      if (couponCode) {
+        try {
+          const [couponRows] = await db.execute("SELECT id FROM coupons WHERE code = ?", [couponCode.toUpperCase().trim()]);
+          if (couponRows.length > 0) {
+            const couponId = couponRows[0].id;
+            await db.execute("INSERT INTO coupon_uses (coupon_id, user_id, order_id) VALUES (?, ?, ?)", [couponId, userId, orderId]);
+            await db.execute("UPDATE coupons SET current_uses = current_uses + 1 WHERE id = ?", [couponId]);
+            console.log(`[CUPOM] Cupom ${couponCode} utilizado no pedido ${orderId}`);
+          }
+        } catch (couponErr) {
+          console.error("[CUPOM] Erro ao registrar uso do cupom (pedido j\xE1 criado):", couponErr);
+        }
+      }
       console.log(`[CHECKOUT] Pedido ${orderId} criado com sucesso. Estoque reservado.`);
       res.status(201).json({
         success: true,

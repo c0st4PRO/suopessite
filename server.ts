@@ -202,6 +202,41 @@ async function initializeDatabase() {
     // Adicionar sort_order em bancos existentes
     try { await db.execute("ALTER TABLE gallery ADD COLUMN sort_order INT DEFAULT 0"); } catch(e) { /* já existe */ }
 
+    // TABELA DE CUPONS
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        type ENUM('percentage', 'fixed', 'free_shipping') NOT NULL DEFAULT 'percentage',
+        value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        min_purchase DECIMAL(10,2) DEFAULT 0,
+        max_discount DECIMAL(10,2) DEFAULT NULL,
+        max_uses INT DEFAULT NULL,
+        current_uses INT DEFAULT 0,
+        max_uses_per_user INT DEFAULT NULL,
+        applies_to VARCHAR(255) DEFAULT NULL,
+        active TINYINT(1) DEFAULT 1,
+        starts_at DATETIME DEFAULT NULL,
+        expires_at DATETIME DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // TABELA DE USOS DE CUPONS POR USUÁRIO
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS coupon_uses (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        coupon_id INT NOT NULL,
+        user_id VARCHAR(255) NOT NULL,
+        order_id VARCHAR(255),
+        used_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Adicionar coluna de cupom aplicado nos pedidos
+    try { await db.execute("ALTER TABLE orders ADD COLUMN coupon_code VARCHAR(50) DEFAULT NULL"); } catch(e) {}
+    try { await db.execute("ALTER TABLE orders ADD COLUMN coupon_discount DECIMAL(10,2) DEFAULT 0"); } catch(e) {}
+
     const mpActivated = process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI";
     // Migração: Adicionar colunas caso não existam (para sites já em produção)
     try { await db.query("ALTER TABLE orders ADD COLUMN customer_cpf VARCHAR(20)"); } catch (e) {}
@@ -956,6 +991,173 @@ async function startServer() {
     }
   });
 
+  // ============================================
+  // SISTEMA DE CUPONS
+  // ============================================
+
+  // Admin: Listar todos os cupons
+  app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
+    try {
+      const [rows]: any = await db.execute("SELECT * FROM coupons ORDER BY created_at DESC");
+      res.json(rows);
+    } catch (err) {
+      console.error("Erro ao buscar cupons:", err);
+      res.status(500).json({ message: "Erro ao buscar cupons" });
+    }
+  });
+
+  // Admin: Criar cupom
+  app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
+    try {
+      const { code, type, value, minPurchase, maxDiscount, maxUses, maxUsesPerUser, appliesTo, startsAt, expiresAt } = req.body;
+      
+      if (!code || !type) {
+        return res.status(400).json({ message: "Código e tipo são obrigatórios." });
+      }
+
+      // Verificar se código já existe
+      const [existing]: any = await db.execute("SELECT id FROM coupons WHERE code = ?", [code.toUpperCase().trim()]);
+      if (existing.length > 0) {
+        return res.status(409).json({ message: "Já existe um cupom com este código." });
+      }
+
+      await db.execute(
+        `INSERT INTO coupons (code, type, value, min_purchase, max_discount, max_uses, max_uses_per_user, applies_to, starts_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          code.toUpperCase().trim(),
+          type,
+          value || 0,
+          minPurchase || 0,
+          maxDiscount || null,
+          maxUses || null,
+          maxUsesPerUser || null,
+          appliesTo || null,
+          startsAt || null,
+          expiresAt || null
+        ]
+      );
+
+      res.status(201).json({ success: true, message: "Cupom criado com sucesso." });
+    } catch (err) {
+      console.error("Erro ao criar cupom:", err);
+      res.status(500).json({ message: "Erro ao criar cupom" });
+    }
+  });
+
+  // Admin: Ativar/Desativar cupom
+  app.patch("/api/admin/coupons/:id/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("UPDATE coupons SET active = NOT active WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erro ao alternar cupom:", err);
+      res.status(500).json({ message: "Erro ao alternar cupom" });
+    }
+  });
+
+  // Admin: Deletar cupom
+  app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute("DELETE FROM coupon_uses WHERE coupon_id = ?", [id]);
+      await db.execute("DELETE FROM coupons WHERE id = ?", [id]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erro ao deletar cupom:", err);
+      res.status(500).json({ message: "Erro ao deletar cupom" });
+    }
+  });
+
+  // Público: Validar cupom no checkout
+  app.post("/api/coupons/validate", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { code, subtotal } = req.body;
+      const userId = req.user.id;
+
+      if (!code) return res.status(400).json({ message: "Código do cupom é obrigatório." });
+
+      const [rows]: any = await db.execute("SELECT * FROM coupons WHERE code = ?", [code.toUpperCase().trim()]);
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Cupom não encontrado." });
+      }
+
+      const coupon = rows[0];
+
+      // Verificar se está ativo
+      if (!coupon.active) {
+        return res.status(400).json({ message: "Este cupom está desativado." });
+      }
+
+      // Verificar data de início
+      if (coupon.starts_at && new Date(coupon.starts_at) > new Date()) {
+        return res.status(400).json({ message: "Este cupom ainda não está válido." });
+      }
+
+      // Verificar expiração
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+        return res.status(400).json({ message: "Este cupom já expirou." });
+      }
+
+      // Verificar limite global de usos
+      if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
+        return res.status(400).json({ message: "Este cupom atingiu o limite máximo de usos." });
+      }
+
+      // Verificar limite por usuário
+      if (coupon.max_uses_per_user !== null) {
+        const [userUses]: any = await db.execute(
+          "SELECT COUNT(*) as count FROM coupon_uses WHERE coupon_id = ? AND user_id = ?",
+          [coupon.id, userId]
+        );
+        if (userUses[0].count >= coupon.max_uses_per_user) {
+          return res.status(400).json({ message: "Você já utilizou este cupom o máximo de vezes permitido." });
+        }
+      }
+
+      // Verificar compra mínima
+      const minPurchase = parseFloat(coupon.min_purchase) || 0;
+      if (subtotal < minPurchase) {
+        return res.status(400).json({ message: `Compra mínima de R$ ${minPurchase.toFixed(2)} necessária para este cupom.` });
+      }
+
+      // Calcular desconto
+      let discount = 0;
+      let freeShipping = false;
+
+      if (coupon.type === "percentage") {
+        discount = (subtotal * parseFloat(coupon.value)) / 100;
+        if (coupon.max_discount !== null) {
+          discount = Math.min(discount, parseFloat(coupon.max_discount));
+        }
+      } else if (coupon.type === "fixed") {
+        discount = parseFloat(coupon.value);
+        discount = Math.min(discount, subtotal); // Não pode exceder o subtotal
+      } else if (coupon.type === "free_shipping") {
+        freeShipping = true;
+        discount = 0;
+      }
+
+      res.json({
+        valid: true,
+        couponId: coupon.id,
+        code: coupon.code,
+        type: coupon.type,
+        discount: parseFloat(discount.toFixed(2)),
+        freeShipping,
+        description: coupon.type === "percentage" 
+          ? `${coupon.value}% OFF` 
+          : coupon.type === "fixed" 
+            ? `R$ ${parseFloat(coupon.value).toFixed(2)} OFF`
+            : "FRETE GRÁTIS"
+      });
+    } catch (err) {
+      console.error("Erro ao validar cupom:", err);
+      res.status(500).json({ message: "Erro ao validar cupom." });
+    }
+  });
+
   app.post("/api/shipping", (req, res) => {
     const { cep, totalAmount } = req.body;
     if (!cep) return res.status(400).json({ message: "CEP obrigatório" });
@@ -1063,7 +1265,7 @@ async function startServer() {
   }
 
   app.post("/api/checkout", authenticateToken, async (req: any, res: any) => {
-    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
+    const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost, couponCode, couponDiscount, couponFreeShipping } = req.body;
     
     // Pegar User ID do JWT descriptografado pelo Middleware
     const userId = req.user.id;
@@ -1136,8 +1338,15 @@ async function startServer() {
         });
       }
 
-      // Adiciona o Frete
-      calculatedTotal += parseFloat(shippingCost || 0);
+      // Aplicar desconto do cupom
+      const appliedDiscount = parseFloat(couponDiscount || 0);
+      if (appliedDiscount > 0) {
+        calculatedTotal = Math.max(0, calculatedTotal - appliedDiscount);
+      }
+
+      // Adiciona o Frete (grátis se cupom de frete)
+      const finalShippingCost = couponFreeShipping ? 0 : parseFloat(shippingCost || 0);
+      calculatedTotal += finalShippingCost;
 
       const orderId = "ORD-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
       
@@ -1205,8 +1414,8 @@ async function startServer() {
 
       // Gravar pedido no banco
       const query = `
-        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code, coupon_code, coupon_discount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       await connection.execute(query, [
         orderId, 
@@ -1214,14 +1423,16 @@ async function startServer() {
         payerName || "Não informado",
         payerEmail || "Não informado",
         calculatedTotal, 
-        shippingCost || 0,
+        finalShippingCost,
         JSON.stringify(shippingAddress),
         paymentMethod,
         cpf,
         phone,
         mp_id,
         mp_qr_code_base64,
-        mp_qr_code
+        mp_qr_code,
+        couponCode || null,
+        appliedDiscount
       ]);
 
       // Gravar itens do pedido com product_id para rastreamento de estoque
@@ -1236,6 +1447,21 @@ async function startServer() {
       // ✅ COMMIT: Tudo deu certo, confirma a transação (estoque + pedido)
       await connection.commit();
       connection.release();
+
+      // Registrar uso do cupom (fora da transação crítica)
+      if (couponCode) {
+        try {
+          const [couponRows]: any = await db.execute("SELECT id FROM coupons WHERE code = ?", [couponCode.toUpperCase().trim()]);
+          if (couponRows.length > 0) {
+            const couponId = couponRows[0].id;
+            await db.execute("INSERT INTO coupon_uses (coupon_id, user_id, order_id) VALUES (?, ?, ?)", [couponId, userId, orderId]);
+            await db.execute("UPDATE coupons SET current_uses = current_uses + 1 WHERE id = ?", [couponId]);
+            console.log(`[CUPOM] Cupom ${couponCode} utilizado no pedido ${orderId}`);
+          }
+        } catch (couponErr) {
+          console.error("[CUPOM] Erro ao registrar uso do cupom (pedido já criado):", couponErr);
+        }
+      }
 
       console.log(`[CHECKOUT] Pedido ${orderId} criado com sucesso. Estoque reservado.`);
 
