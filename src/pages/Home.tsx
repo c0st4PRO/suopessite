@@ -62,7 +62,8 @@ export function Home({ onAddToCart }: HomeProps) {
     "PATCHES", 
     "HEADWEAR", 
     "ACESSÓRIOS",
-    "LINHA ESPECIAL"
+    "LINHA ESPECIAL",
+    "PRÉ-VENDA"
   ];
 
   const allColors = Array.from(new Set(products.flatMap(p => p.colors?.map(c => c.name) || []))).filter(Boolean) as string[];
@@ -74,7 +75,13 @@ export function Home({ onAddToCart }: HomeProps) {
     const name = p.name || "S/N";
     const description = p.description || "";
 
-    const matchesCategory = selectedCategory === "TODOS" || productCategories.includes(selectedCategory);
+    let matchesCategory = selectedCategory === "TODOS" || productCategories.includes(selectedCategory);
+    
+    // Tratamento especial para a "categoria" virtual Pré-Venda
+    if (selectedCategory === "PRÉ-VENDA") {
+      matchesCategory = p.isPresale === true;
+    }
+
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          description.toLowerCase().includes(searchQuery.toLowerCase());
     
