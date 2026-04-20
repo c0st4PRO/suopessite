@@ -390,6 +390,298 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   }).catch(err => console.error("Falha ao criar conta de teste SMTP:", err));
 }
 
+// ============================================
+// GERADOR DE E-MAILS TRANSACIONAIS (SUOPES)
+// ============================================
+const SITE_URL = process.env.APP_URL || "https://suopes.com";
+
+interface OrderEmailItem {
+  name: string;
+  quantity: number;
+  price: number;
+  image?: string;
+  color?: string;
+  size?: string;
+}
+
+function generateOrderEmailHTML(options: {
+  type: "confirmation" | "approved";
+  customerName: string;
+  orderId: string;
+  items: OrderEmailItem[];
+  subtotal: number;
+  shippingCost: number;
+  total: number;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  shippingAddress?: any;
+  paymentMethod?: string;
+}): string {
+  const { type, customerName, orderId, items, subtotal, shippingCost, total, couponCode, couponDiscount, shippingAddress, paymentMethod } = options;
+
+  const isApproved = type === "approved";
+  const headline = isApproved 
+    ? "PAGAMENTO CONFIRMADO" 
+    : "PEDIDO RECEBIDO";
+  const subheadline = isApproved
+    ? "Excelente! Seu pagamento foi confirmado com sucesso. Estamos preparando seu equipamento para envio."
+    : "Seu pedido foi registrado com sucesso! Assim que o pagamento for confirmado, iniciaremos a preparação.";
+
+  const statusColor = isApproved ? "#22c55e" : "#d4a843";
+  const statusLabel = isApproved ? "APROVADO" : "AGUARDANDO PAGAMENTO";
+
+  const itemsHtml = items.map(item => {
+    const imgSrc = item.image 
+      ? (item.image.startsWith("http") ? item.image : `${SITE_URL}${item.image}`)
+      : "";
+    const details = [item.color, item.size].filter(Boolean).join(" / ");
+    return `
+      <tr>
+        <td style="padding: 16px 0; border-bottom: 1px solid #2a2a2a;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              ${imgSrc ? `<td width="80" style="vertical-align: top; padding-right: 16px;">
+                <img src="${imgSrc}" alt="${item.name}" width="80" height="80" style="display: block; border: 1px solid #333; object-fit: cover;" />
+              </td>` : ""}
+              <td style="vertical-align: top;">
+                <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: bold; color: #ffffff; font-family: monospace;">${item.name}</p>
+                ${details ? `<p style="margin: 0 0 4px 0; font-size: 11px; color: #888; font-family: monospace; text-transform: uppercase;">${details}</p>` : ""}
+                <p style="margin: 0; font-size: 12px; color: #888; font-family: monospace;">Qtd: ${item.quantity}</p>
+              </td>
+              <td style="vertical-align: top; text-align: right; white-space: nowrap;">
+                <p style="margin: 0; font-size: 14px; font-weight: bold; color: #d4a843; font-family: monospace;">R$ ${(item.price * item.quantity).toFixed(2)}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+  }).join("");
+
+  let addressHtml = "";
+  if (shippingAddress) {
+    const addr = typeof shippingAddress === "string" ? JSON.parse(shippingAddress) : shippingAddress;
+    addressHtml = `
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 24px; background: #1a1a1a; border: 1px solid #2a2a2a;">
+        <tr>
+          <td style="padding: 20px;">
+            <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: bold; color: #d4a843; font-family: monospace; letter-spacing: 2px;">ENDEREÇO DE ENVIO</p>
+            <p style="margin: 0; font-size: 13px; color: #ccc; font-family: monospace; line-height: 1.8;">
+              ${addr.address || ""}${addr.number ? `, ${addr.number}` : ""}<br/>
+              ${addr.neighborhood || ""}<br/>
+              ${addr.city || ""} - ${addr.state || ""}<br/>
+              CEP: ${addr.cep || ""}
+            </p>
+          </td>
+        </tr>
+      </table>`;
+  }
+
+  const paymentLabel = paymentMethod === "pix" ? "PIX" : paymentMethod === "credit_card" ? "Cartão de Crédito" : (paymentMethod || "").toUpperCase();
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: 'Helvetica Neue', Arial, sans-serif; color: #ffffff;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #111111; border: 1px solid #2a2a2a;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px; background: linear-gradient(135deg, #1a1a0a 0%, #111111 100%); border-bottom: 2px solid #d4a843; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 10px; letter-spacing: 4px; color: #d4a843; font-family: monospace;">SUOPES TACTICAL</p>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: 2px;">${headline}</h1>
+            </td>
+          </tr>
+
+          <!-- Status Badge -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px; text-align: center;">
+              <table cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td style="background: ${statusColor}15; border: 1px solid ${statusColor}50; padding: 8px 24px; font-size: 10px; font-weight: bold; color: ${statusColor}; font-family: monospace; letter-spacing: 3px;">
+                    ● ${statusLabel}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 28px 40px 16px 40px;">
+              <p style="margin: 0 0 8px 0; font-size: 16px; color: #ffffff;">Olá, <strong>${customerName || "Operador"}</strong>!</p>
+              <p style="margin: 0; font-size: 14px; color: #999; line-height: 1.6;">${subheadline}</p>
+            </td>
+          </tr>
+
+          <!-- Order ID -->
+          <tr>
+            <td style="padding: 0 40px 16px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #1a1a1a; border: 1px solid #2a2a2a;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 2px;">PEDIDO</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: bold; color: #d4a843; font-family: monospace;">${orderId}</p>
+                  </td>
+                  <td style="padding: 16px 20px; text-align: right;">
+                    <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 2px;">PAGAMENTO</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: bold; color: #ffffff; font-family: monospace;">${paymentLabel}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Items -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: bold; color: #d4a843; font-family: monospace; letter-spacing: 2px;">ITENS DO PEDIDO</p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                ${itemsHtml}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Totals -->
+          <tr>
+            <td style="padding: 24px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #1a1a1a; border: 1px solid #2a2a2a;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding: 4px 0; font-size: 12px; color: #888; font-family: monospace;">Subtotal</td>
+                        <td style="padding: 4px 0; font-size: 12px; color: #fff; font-family: monospace; text-align: right;">R$ ${subtotal.toFixed(2)}</td>
+                      </tr>
+                      ${couponCode && couponDiscount && couponDiscount > 0 ? `
+                      <tr>
+                        <td style="padding: 4px 0; font-size: 12px; color: #22c55e; font-family: monospace;">Cupom (${couponCode})</td>
+                        <td style="padding: 4px 0; font-size: 12px; color: #22c55e; font-family: monospace; text-align: right;">- R$ ${couponDiscount.toFixed(2)}</td>
+                      </tr>` : ""}
+                      <tr>
+                        <td style="padding: 4px 0; font-size: 12px; color: #888; font-family: monospace;">Frete</td>
+                        <td style="padding: 4px 0; font-size: 12px; color: #fff; font-family: monospace; text-align: right;">${shippingCost === 0 ? '<span style="color: #22c55e; font-weight: bold;">GRÁTIS</span>' : `R$ ${shippingCost.toFixed(2)}`}</td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="padding: 8px 0 0 0; border-top: 1px solid #333;">
+                          <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                              <td style="padding: 8px 0; font-size: 16px; font-weight: bold; color: #d4a843; font-family: monospace;">TOTAL</td>
+                              <td style="padding: 8px 0; font-size: 16px; font-weight: bold; color: #d4a843; font-family: monospace; text-align: right;">R$ ${total.toFixed(2)}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Shipping Address -->
+          <tr>
+            <td style="padding: 0 40px;">${addressHtml}</td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding: 32px 40px; text-align: center;">
+              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: #d4a843; color: #0a0a0a; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">ACOMPANHAR PEDIDO</a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background: #0a0a0a; border-top: 1px solid #2a2a2a; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 10px; color: #555; font-family: monospace; letter-spacing: 2px;">SUOPES TACTICAL © ${new Date().getFullYear()}</p>
+              <p style="margin: 0; font-size: 10px; color: #444; font-family: monospace;">Equipamento tático para o operador moderno.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendOrderEmail(type: "confirmation" | "approved", orderId: string) {
+  if (!transporter) {
+    console.log("[EMAIL] Transporter não configurado, pulando envio.");
+    return;
+  }
+
+  try {
+    // Buscar dados do pedido
+    const [orders]: any = await db.execute(
+      "SELECT id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, coupon_code, coupon_discount FROM orders WHERE id = ?",
+      [orderId]
+    );
+    if (orders.length === 0) {
+      console.log(`[EMAIL] Pedido ${orderId} não encontrado.`);
+      return;
+    }
+    const order = orders[0];
+
+    if (!order.customer_email || order.customer_email === "Não informado") {
+      console.log(`[EMAIL] Pedido ${orderId} sem e-mail válido.`);
+      return;
+    }
+
+    // Buscar itens do pedido
+    const [items]: any = await db.execute(
+      "SELECT product_name, quantity, price, image, color, size FROM order_items WHERE order_id = ?",
+      [orderId]
+    );
+
+    const emailItems: OrderEmailItem[] = items.map((item: any) => ({
+      name: item.product_name,
+      quantity: item.quantity,
+      price: parseFloat(item.price),
+      image: item.image || undefined,
+      color: item.color || undefined,
+      size: item.size || undefined
+    }));
+
+    const subtotal = emailItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const shippingCost = parseFloat(order.shipping_cost) || 0;
+
+    const html = generateOrderEmailHTML({
+      type,
+      customerName: order.customer_name,
+      orderId: order.id,
+      items: emailItems,
+      subtotal,
+      shippingCost,
+      total: parseFloat(order.total),
+      couponCode: order.coupon_code,
+      couponDiscount: parseFloat(order.coupon_discount) || 0,
+      shippingAddress: order.shipping_address,
+      paymentMethod: order.payment_method
+    });
+
+    const subject = type === "approved" 
+      ? `✅ Pagamento Confirmado - Pedido ${orderId} | SUOPES TACTICAL`
+      : `📦 Pedido Recebido - ${orderId} | SUOPES TACTICAL`;
+
+    await transporter.sendMail({
+      from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || "noreply@suopes.com"}>`,
+      to: order.customer_email,
+      subject,
+      html
+    });
+
+    console.log(`[EMAIL] ${type === "approved" ? "Confirmação de pagamento" : "Confirmação de pedido"} enviado para ${order.customer_email} (Pedido: ${orderId})`);
+  } catch (err) {
+    console.error(`[EMAIL] Erro ao enviar e-mail para pedido ${orderId}:`, err);
+  }
+}
+
 // Configure Multer for secure image uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -1465,6 +1757,9 @@ async function startServer() {
 
       console.log(`[CHECKOUT] Pedido ${orderId} criado com sucesso. Estoque reservado.`);
 
+      // 📧 Enviar e-mail de confirmação de pedido (fire-and-forget)
+      sendOrderEmail("confirmation", orderId);
+
       res.status(201).json({ 
         success: true, 
         orderId, 
@@ -1512,6 +1807,10 @@ async function startServer() {
           
           if (mpStatus === "approved") {
             await db.execute("UPDATE orders SET status = 'processando' WHERE mp_id = ? AND status = 'pendente'", [mpPaymentId]);
+            // 📧 Enviar e-mail de pagamento confirmado (apenas se status anterior era diferente)
+            if (prevStatus !== "approved" && orderId) {
+              sendOrderEmail("approved", orderId);
+            }
           }
 
           // 🔄 RESTAURAR ESTOQUE: Se pagamento foi cancelado/rejeitado e NÃO era já cancelado antes
@@ -1552,6 +1851,10 @@ async function startServer() {
           if (paymentData.status === 'approved') {
             await db.execute("UPDATE orders SET payment_status = 'approved', status = 'processando' WHERE id = ?", [id]);
             currentStatus = 'approved';
+            // 📧 Enviar e-mail de pagamento confirmado (apenas se não era approved antes)
+            if (order.payment_status !== 'approved') {
+              sendOrderEmail("approved", id);
+            }
           } else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
              await db.execute("UPDATE orders SET payment_status = ?, status = 'cancelado' WHERE id = ?", [paymentData.status, id]);
              currentStatus = paymentData.status;
