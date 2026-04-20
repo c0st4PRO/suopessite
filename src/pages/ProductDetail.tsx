@@ -833,7 +833,7 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                 <AlertCircle size={16} /> COMO FUNCIONA A PRÉ-VENDA?
               </h3>
               <p className="text-[10px] font-mono text-white/80 leading-relaxed uppercase">
-                Você garante seu item de forma antecipada. A produção e envio não são imediatos. Todo o lote da pré-venda será finalizado em nosso quartel general e enviado de forma conjunta para todos os clientes a partir de: <strong>{product.presaleDate || "DATA A SER DEFINIDA"}</strong>. Com sua compra confirmada, seu equipamento já repousa garantido conosco aguardando o momento tático de despache.
+                Você garante seu item de forma antecipada. A produção e envio não são imediatos. Todo o lote da pré-venda será finalizado e enviado de forma conjunta para todos os clientes a partir de: <strong>{product.presaleDate || "DATA A SER DEFINIDA"}</strong>. Com sua compra confirmada, seu equipamento já está garantido aguardando o início do período de envios.
               </p>
             </div>
           )}
