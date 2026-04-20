@@ -648,7 +648,12 @@ export function Admin({ user }: { user: UserType | null }) {
                 <div className="flex-grow flex flex-col justify-between">
                   <div>
                     <h4 className="text-[10px] font-bold uppercase leading-tight line-clamp-2">{product.name}</h4>
-                    <p className="text-[8px] font-mono text-suopes-muted mt-1">{product.sku}</p>
+                    <p className="text-[8px] font-mono text-suopes-muted mt-1">
+                      {product.sku}
+                      {product.isPresale && (
+                        <span className="ml-2 text-suopes-gold font-bold uppercase underline">[ PRÉ-VENDA ]</span>
+                      )}
+                    </p>
                     <p className="text-[10px] font-mono text-suopes-gold mt-1">R$ {Number(product.price || 0).toFixed(2)}</p>
                   </div>
                   <button 

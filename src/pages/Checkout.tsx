@@ -502,6 +502,11 @@ export function Checkout({ user, cart, clearCart }: CheckoutProps) {
                       <h4 className="text-xs font-bold uppercase">{item.name}</h4>
                       {item.selectedColor && <p className="text-[10px] font-mono text-suopes-muted uppercase mt-1">COR: {item.selectedColor}</p>}
                       {item.selectedSize && <p className="text-[10px] font-mono text-suopes-muted uppercase">TAMANHO: {item.selectedSize}</p>}
+                      {item.isPresale && (
+                        <p className="text-[9px] font-mono text-suopes-gold uppercase font-bold mt-1 bg-suopes-gold/10 inline-block px-1">
+                          PRÉ-VENDA (ENVIO: {item.presaleDate})
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-mono text-white">R$ {(Number(item.price || 0) * item.quantity).toFixed(2)}</p>

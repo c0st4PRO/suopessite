@@ -21,7 +21,7 @@ export function Home({ onAddToCart }: HomeProps) {
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [sortPrice, setSortPrice] = useState(""); // "" | "asc" | "desc"
-  const [stockFilter, setStockFilter] = useState(""); // "" | "mais" | "menos" | "esgotados"
+  const [stockFilter, setStockFilter] = useState(""); // "" | "mais" | "menos" | "esgotados" | "presale"
 
   useEffect(() => {
     const timer = setTimeout(() => setBooting(false), 2000);
@@ -87,6 +87,8 @@ export function Home({ onAddToCart }: HomeProps) {
     } else if (stockFilter === "mais" || stockFilter === "menos") {
       // both means it must be in stock
       matchesStock = p.inStock;
+    } else if (stockFilter === "presale") {
+      matchesStock = p.isPresale === true;
     }
 
     return matchesCategory && matchesSearch && matchesColor && matchesSize && matchesStock;
@@ -299,6 +301,7 @@ export function Home({ onAddToCart }: HomeProps) {
                   <option value="mais">Mais Estoque</option>
                   <option value="menos">Menos Estoque</option>
                   <option value="esgotados">Esgotados</option>
+                  <option value="presale">Pré-Venda</option>
                 </select>
               </div>
 
