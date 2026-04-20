@@ -113,6 +113,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS order_items (
         id INT PRIMARY KEY AUTO_INCREMENT,
         order_id VARCHAR(255) NOT NULL,
+        product_id VARCHAR(255),
         product_name VARCHAR(255) NOT NULL,
         quantity INT NOT NULL,
         price DECIMAL(10,2) NOT NULL,
@@ -174,6 +175,7 @@ async function initializeDatabase() {
       "ALTER TABLE products ADD COLUMN features TEXT",
       "ALTER TABLE products ADD COLUMN care TEXT",
       "ALTER TABLE products ADD COLUMN stock_quantity INT DEFAULT 10",
+      "ALTER TABLE order_items ADD COLUMN product_id VARCHAR(255)",
     ];
     for (const sql of newColumns) {
       try { await db.execute(sql); } catch(e) { /* coluna já existe */ }
@@ -1028,6 +1030,30 @@ async function startServer() {
 
   // Restante das rotas...
 
+  // ============================================
+  // 🔄 FUNÇÃO DE RESTAURAÇÃO DE ESTOQUE
+  // Chamada quando um pedido é cancelado/rejeitado
+  // para devolver as unidades reservadas ao estoque.
+  // ============================================
+  async function restoreStockForOrder(orderId: string) {
+    try {
+      const [items]: any = await db.execute(
+        "SELECT product_id, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL",
+        [orderId]
+      );
+
+      for (const item of items) {
+        await db.execute(
+          "UPDATE products SET stock_quantity = stock_quantity + ?, in_stock = 1 WHERE id = ?",
+          [item.quantity, item.product_id]
+        );
+        console.log(`[ESTOQUE RESTAURADO] Produto ${item.product_id}: +${item.quantity} unidade(s) devolvida(s) (Pedido ${orderId} cancelado)`);
+      }
+    } catch (err) {
+      console.error(`[ESTOQUE] Erro ao restaurar estoque do pedido ${orderId}:`, err);
+    }
+  }
+
   app.post("/api/checkout", authenticateToken, async (req: any, res: any) => {
     const { payerEmail, payerName, cpf, phone, items, shippingAddress, paymentMethod, shippingCost } = req.body;
     
@@ -1042,28 +1068,63 @@ async function startServer() {
       return res.status(400).json({ message: "CPF e Telefone são obrigatórios para checkout." });
     }
 
+    // ============================================================
+    // 🔒 CHECKOUT COM RESERVA ATÔMICA DE ESTOQUE (ANTI-OVERSELL)
+    // Usa transação MySQL + SELECT ... FOR UPDATE para travar as
+    // linhas dos produtos durante a verificação e decremento.
+    // Se 2 compradores tentarem simultaneamente, o segundo espera
+    // a transação do primeiro terminar, aí verá o estoque real.
+    // ============================================================
+    const connection = await db.getConnection();
     try {
-      // 🚨 CÁLCULO SEGURO DO BACKEND 🚨
-      // Busca os preços REAIS direto do banco de dados, ignorando os preços do carrinho
+      await connection.beginTransaction();
+
       let calculatedTotal = 0;
       const secureItems = [];
 
       for (const item of items) {
-        // Busca o preço inviolável no banco
-        const [rows]: any = await db.execute("SELECT price FROM products WHERE id = ?", [item.id]);
-        
-        if (rows.length === 0) {
-           return res.status(400).json({ message: `Produto ${item.id} não encontrado no banco de dados.` });
-        }
-        
-        const realPrice = parseFloat(rows[0].price);
         const itemQuantity = parseInt(item.quantity) || 1;
+
+        // 🔒 LOCK: Trava a linha do produto para leitura/escrita exclusiva
+        const [rows]: any = await connection.execute(
+          "SELECT id, name, price, stock_quantity, in_stock FROM products WHERE id = ? FOR UPDATE",
+          [item.id]
+        );
+
+        if (rows.length === 0) {
+          await connection.rollback();
+          connection.release();
+          return res.status(400).json({ message: `Produto ${item.id} não encontrado no banco de dados.` });
+        }
+
+        const dbProduct = rows[0];
+        const realPrice = parseFloat(dbProduct.price);
+        const currentStock = dbProduct.stock_quantity !== undefined ? dbProduct.stock_quantity : 10;
+
+        // Verificação de estoque suficiente
+        if (currentStock < itemQuantity) {
+          await connection.rollback();
+          connection.release();
+          return res.status(409).json({ 
+            message: `Estoque insuficiente para "${dbProduct.name}". Disponível: ${currentStock}, Solicitado: ${itemQuantity}.`,
+            productId: item.id,
+            available: currentStock
+          });
+        }
+
+        // ✅ Decrementar estoque atomicamente
+        const newStock = currentStock - itemQuantity;
+        const newInStock = newStock > 0 ? 1 : 0;
+        await connection.execute(
+          "UPDATE products SET stock_quantity = ?, in_stock = ? WHERE id = ?",
+          [newStock, newInStock, item.id]
+        );
+        console.log(`[ESTOQUE] Produto ${dbProduct.name}: ${currentStock} -> ${newStock} (Reservado: ${itemQuantity})`);
+
         calculatedTotal += (realPrice * itemQuantity);
-        
-        // Empurra o item para a matriz segura para gravar no banco posteriormente
         secureItems.push({
           ...item,
-          price: realPrice 
+          price: realPrice
         });
       }
 
@@ -1134,12 +1195,12 @@ async function startServer() {
         }
       }
 
+      // Gravar pedido no banco
       const query = `
         INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-
-      await db.execute(query, [
+      await connection.execute(query, [
         orderId, 
         userId || "anonymous",
         payerName || "Não informado",
@@ -1155,14 +1216,20 @@ async function startServer() {
         mp_qr_code
       ]);
 
+      // Gravar itens do pedido com product_id para rastreamento de estoque
       const itemQuery = `
-        INSERT INTO order_items (order_id, product_name, quantity, price, image, color, size)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO order_items (order_id, product_id, product_name, quantity, price, image, color, size)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
-
       for (const item of secureItems) {
-        await db.execute(itemQuery, [orderId, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
+        await connection.execute(itemQuery, [orderId, item.id, item.name, item.quantity, item.price, item.image, item.selectedColor || null, item.selectedSize || null]);
       }
+
+      // ✅ COMMIT: Tudo deu certo, confirma a transação (estoque + pedido)
+      await connection.commit();
+      connection.release();
+
+      console.log(`[CHECKOUT] Pedido ${orderId} criado com sucesso. Estoque reservado.`);
 
       res.status(201).json({ 
         success: true, 
@@ -1172,6 +1239,9 @@ async function startServer() {
       });
 
     } catch (err: any) {
+      // ❌ ROLLBACK: Algo deu errado, desfaz tudo (estoque volta ao normal)
+      try { await connection.rollback(); } catch(rollbackErr) {}
+      connection.release();
       console.error("Erro no checkout:", err);
       res.status(500).json({ message: "Erro processando pedido de checkout", error: err.message });
     }
@@ -1199,13 +1269,23 @@ async function startServer() {
           const mpStatus = paymentData.status;
           console.log(`[MP WEBHOOK] Pagamento ${mpPaymentId} => Status: ${mpStatus}`);
 
+          // Buscar status anterior antes de atualizar
+          const [prevOrders]: any = await db.execute("SELECT id, payment_status FROM orders WHERE mp_id = ?", [mpPaymentId]);
+          const prevStatus = prevOrders.length > 0 ? prevOrders[0].payment_status : null;
+          const orderId = prevOrders.length > 0 ? prevOrders[0].id : null;
+
           await db.execute("UPDATE orders SET payment_status = ? WHERE mp_id = ?", [mpStatus, mpPaymentId]);
           
           if (mpStatus === "approved") {
             await db.execute("UPDATE orders SET status = 'processando' WHERE mp_id = ? AND status = 'pendente'", [mpPaymentId]);
           }
-          if (mpStatus === "cancelled" || mpStatus === "rejected") {
+
+          // 🔄 RESTAURAR ESTOQUE: Se pagamento foi cancelado/rejeitado e NÃO era já cancelado antes
+          if ((mpStatus === "cancelled" || mpStatus === "rejected") && prevStatus !== "cancelled" && prevStatus !== "rejected") {
             await db.execute("UPDATE orders SET status = 'cancelado' WHERE mp_id = ?", [mpPaymentId]);
+            if (orderId) {
+              await restoreStockForOrder(orderId);
+            }
           }
         }
       }
@@ -1241,6 +1321,10 @@ async function startServer() {
           } else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
              await db.execute("UPDATE orders SET payment_status = ?, status = 'cancelado' WHERE id = ?", [paymentData.status, id]);
              currentStatus = paymentData.status;
+             // Restaurar estoque se pagamento foi rejeitado/cancelado
+             if (order.payment_status !== 'cancelled' && order.payment_status !== 'rejected') {
+               await restoreStockForOrder(id);
+             }
           }
         } catch (mpErr) {
           console.error("Erro ao verificar status MP em tempo real:", mpErr);
