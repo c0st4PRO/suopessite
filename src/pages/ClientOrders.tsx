@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { Package, Truck, CheckCircle2, Clock, MapPin, ChevronRight, ShoppingBag, X } from "lucide-react";
 import { User } from "../types";
 import { Link } from "react-router-dom";
@@ -18,6 +18,7 @@ interface Order {
     color?: string;
   }[];
   trackingCode?: string;
+  carrier?: string;
 }
 
 // Removido o mock estático para usar fetch dinâmico da API
