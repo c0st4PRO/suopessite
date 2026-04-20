@@ -160,6 +160,7 @@ async function initializeDatabase() {
         features TEXT,
         care TEXT,
         in_stock TINYINT(1) DEFAULT 1,
+        stock_quantity INT DEFAULT 10,
         featured TINYINT(1) DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -172,6 +173,7 @@ async function initializeDatabase() {
       "ALTER TABLE products ADD COLUMN has_sizes TINYINT(1) DEFAULT 0",
       "ALTER TABLE products ADD COLUMN features TEXT",
       "ALTER TABLE products ADD COLUMN care TEXT",
+      "ALTER TABLE products ADD COLUMN stock_quantity INT DEFAULT 10",
     ];
     for (const sql of newColumns) {
       try { await db.execute(sql); } catch(e) { /* coluna já existe */ }
@@ -267,7 +269,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 async function getAssistantContext() {
   try {
-    const [products]: any = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, colors, sizes, has_sizes FROM products");
+    const [products]: any = await db.execute("SELECT id, image, name, description, price, category, features, in_stock, stock_quantity, colors, sizes, has_sizes FROM products");
     const [gallery]: any = await db.execute("SELECT title, context, location FROM gallery LIMIT 10");
     
     let context = "INFORMAÇÕES DO CATÁLOGO SUOPES (CONTEXTO):\n\n";
@@ -294,9 +296,10 @@ async function getAssistantContext() {
         }
       } catch(e) {}
 
-      const stockStatus = p.in_stock === 1 ? 'EM ESTOQUE' : 'ESGOTADO / INDISPONÍVEL';
+      const stockStatus = (p.stock_quantity > 0 || p.in_stock === 1) ? 'EM ESTOQUE' : 'ESGOTADO / INDISPONÍVEL';
+      const availableQty = p.stock_quantity !== undefined ? p.stock_quantity : 10;
 
-      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} | Preço: R$ ${p.price}\n`;
+      context += `- ID: ${p.id} | Nome: ${p.name} | Status Geral: ${stockStatus} (${availableQty} unid.) | Preço: R$ ${p.price}\n`;
       context += `  Categoria: ${p.category} | Cores: ${colorsText} | Tamanhos: ${sizesText}\n`;
       if (p.description) context += `  Descrição: ${p.description}\n`;
       if (p.features) context += `  Características: ${p.features}\n`;
@@ -770,6 +773,7 @@ async function startServer() {
           hasSizes: p.has_sizes === 1,
           features: p.features || null,
           care: p.care || null,
+          stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
           featured: p.featured === 1
         };
       });
@@ -782,21 +786,23 @@ async function startServer() {
 
   app.post("/api/products", requireAdmin, async (req, res) => {
     try {
-      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care } = req.body;
+      const { name, description, price, category, image, featured, inStock, sku, sizes, hasSizes, features, care, stockQuantity } = req.body;
       const id = Date.now().toString();
       const defaultImages = JSON.stringify([image, image, image, image]);
       const defaultColors = JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      const finalStockQuantity = stockQuantity !== undefined ? Number(stockQuantity) : 10;
+      const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       
       // Auto-generador de SKU: Prefixo fixo + Primeiras 3 letras da Categoria + Digitos Aleatórios
       let autoCategory = category ? category.split(',')[0].substring(0, 3).toUpperCase() : 'GER';
       const autoSku = sku && sku.trim() !== '' ? sku : `SUO-${autoCategory}-${id.slice(-6)}`;
 
       await db.execute(
-        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, inStock ? 1 : 0, autoSku]
+        "INSERT INTO products (id, name, description, price, category, image, images, colors, sizes, has_sizes, features, care, featured, in_stock, stock_quantity, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, name, description, price, category, image, defaultImages, defaultColors, sizesJson, hasSizes ? 1 : 0, features || null, care || null, featured ? 1 : 0, finalInStock, finalStockQuantity, autoSku]
       );
-      res.json({ id, sku: autoSku, ...req.body });
+      res.json({ id, sku: autoSku, ...req.body, stockQuantity: finalStockQuantity, inStock: finalInStock === 1 });
     } catch (err) {
       console.error("Erro ao criar produto:", err);
       res.status(500).json({ message: "Erro ao criar produto" });
@@ -806,15 +812,17 @@ async function startServer() {
   app.put("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku } = req.body;
+      const { name, description, price, category, image, featured, inStock, images, colors, sizes, hasSizes, features, care, sku, stockQuantity } = req.body;
       
       const imagesJson = images ? JSON.stringify(images) : JSON.stringify([image, image, image, image]);
       const colorsJson = colors ? JSON.stringify(colors) : JSON.stringify([]);
       const sizesJson = sizes ? JSON.stringify(sizes) : JSON.stringify([]);
+      const finalStockQuantity = stockQuantity !== undefined ? Number(stockQuantity) : 10;
+      const finalInStock = finalStockQuantity > 0 ? 1 : 0;
       
       await db.execute(
-        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
-        [name, description, price, category, image, featured ? 1 : 0, inStock ? 1 : 0, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
+        "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ?, featured = ?, in_stock = ?, stock_quantity = ?, images = ?, colors = ?, sizes = ?, has_sizes = ?, features = ?, care = ?, sku = ? WHERE id = ?",
+        [name, description, price, category, image, featured ? 1 : 0, finalInStock, finalStockQuantity, imagesJson, colorsJson, sizesJson, hasSizes ? 1 : 0, features || null, care || null, sku || null, id]
       );
 
       // Retorna o produto atualizado para o frontend
@@ -835,6 +843,7 @@ async function startServer() {
           colors: Array.isArray(parsedColors) ? parsedColors : [],
           sizes: Array.isArray(parsedSizes) ? parsedSizes : [],
           hasSizes: p.has_sizes === 1,
+          stockQuantity: p.stock_quantity !== undefined ? p.stock_quantity : 10,
           featured: p.featured === 1
         });
       } else {

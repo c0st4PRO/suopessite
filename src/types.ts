@@ -21,6 +21,7 @@ export interface Product {
   hasSizes?: boolean;
   sizes?: string[];
   inStock: boolean;
+  stockQuantity?: number;
 }
 
 export interface CartItem extends Product {

@@ -31,16 +31,30 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             </span>
           ))}
         </div>
+        {!product.inStock && (
+          <div className="absolute top-4 right-4 bg-suopes-red px-2 py-1 text-[8px] font-mono tracking-widest text-white border border-suopes-red/50">
+            ESGOTADO
+          </div>
+        )}
         <div className="absolute inset-0 bg-suopes-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
-              onAddToCart();
-            }}
-            className="btn-suopes scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2"
-          >
-            <Plus size={16} /> ADICIONAR AO CARRINHO
-          </button>
+          {product.inStock ? (
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                onAddToCart();
+              }}
+              className="btn-suopes scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2"
+            >
+              <Plus size={16} /> ADICIONAR AO CARRINHO
+            </button>
+          ) : (
+            <button 
+              onClick={(e) => { e.preventDefault(); /* do nothing */ }}
+              className="px-6 py-3 border border-suopes-red text-suopes-red bg-suopes-red/10 scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 font-mono text-[10px] tracking-widest uppercase"
+            >
+              ESGOTADO
+            </button>
+          )}
         </div>
       </Link>
       

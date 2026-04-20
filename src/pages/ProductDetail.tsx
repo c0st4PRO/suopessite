@@ -57,7 +57,8 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
             colors: found.colors || [],
             sizes: found.sizes || [],
             hasSizes: found.hasSizes || false,
-            inStock: found.inStock !== undefined ? found.inStock : true
+            inStock: found.inStock !== undefined ? found.inStock : true,
+            stockQuantity: found.stockQuantity !== undefined ? found.stockQuantity : 10
           };
           setProduct(productWithDefaults);
           setEditForm(productWithDefaults);
@@ -417,14 +418,29 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                     className="w-full bg-suopes-black border border-suopes-gray p-3 text-2xl font-bold text-suopes-white outline-none focus:border-suopes-gold"
                   />
                 </div>
-                <div>
-                  <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Preço (R$)</label>
-                  <input 
-                    type="number"
-                    value={editForm.price}
-                    onChange={(e) => setEditForm({...editForm, price: parseFloat(e.target.value)})}
-                    className="w-full bg-suopes-black border border-suopes-gray p-3 text-xl font-mono text-suopes-gold outline-none focus:border-suopes-gold"
-                  />
+                <div className="flex gap-4">
+                  <div className="flex-grow">
+                    <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Preço (R$)</label>
+                    <input 
+                      type="number"
+                      value={editForm.price}
+                      onChange={(e) => setEditForm({...editForm, price: parseFloat(e.target.value)})}
+                      className="w-full bg-suopes-black border border-suopes-gray p-3 text-xl font-mono text-suopes-gold outline-none focus:border-suopes-gold"
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Qtd. Estoque</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      value={editForm.stockQuantity !== undefined ? editForm.stockQuantity : 10}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setEditForm({...editForm, stockQuantity: val, inStock: val > 0});
+                      }}
+                      className="w-full bg-suopes-black border border-suopes-gray p-3 text-xl font-mono text-suopes-white outline-none focus:border-suopes-gold"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 py-2">
                   <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Status Geral:</label>
@@ -448,10 +464,17 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   ))}
                   <span className="text-suopes-muted">/ {product.sku}</span>
                 </span>
-                <div className="flex items-center gap-4 mb-4">
-                  <h1 className="text-4xl md:text-5xl font-black">{product.name || "EQUIPAMENTO SEM NOME"}</h1>
-                  {!product.inStock && (
-                    <span className="bg-suopes-red text-white text-[10px] font-mono px-3 py-1 tracking-widest">ESGOTADO</span>
+                <div className="flex flex-col gap-1 mb-4">
+                  <div className="flex items-center gap-4">
+                    <h1 className="text-4xl md:text-5xl font-black">{product.name || "EQUIPAMENTO SEM NOME"}</h1>
+                    {!product.inStock && (
+                      <span className="bg-suopes-red text-white text-[10px] font-mono px-3 py-1 tracking-widest">ESGOTADO</span>
+                    )}
+                  </div>
+                  {product.inStock && (
+                    <span className="text-[10px] font-mono text-suopes-gold tracking-widest">
+                      {product.stockQuantity !== undefined ? product.stockQuantity : 10} {product.stockQuantity === 1 ? 'DISPONÍVEL' : 'DISPONÍVEIS'}
+                    </span>
                   )}
                 </div>
                 <p className="text-2xl font-mono text-suopes-gold">
