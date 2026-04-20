@@ -49,7 +49,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             </button>
           ) : (
             <span 
-              className="px-4 py-3 border border-suopes-red text-suopes-red bg-suopes-red/10 scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 font-mono text-[10px] tracking-widest uppercase cursor-pointer text-center"
+              className="px-6 py-3 bg-suopes-red text-white hover:bg-white hover:text-suopes-red scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 font-mono text-[10px] tracking-[0.2em] font-bold uppercase cursor-pointer flex items-center justify-center"
             >
               AVISE-ME QUANDO CHEGAR
             </span>
