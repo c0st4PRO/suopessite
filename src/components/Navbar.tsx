@@ -28,7 +28,7 @@ export function Navbar({ cartCount, onCartClick, user, onLogout }: NavbarProps) 
           
           <Link to="/" className="text-2xl font-black tracking-tighter flex items-center gap-2">
             <img src="/favicon.png" alt="Suopes Logo" className="w-8 h-8 object-contain" />
-            <span className="hidden md:inline">SUOPES<span className="text-suopes-gold">TACTICAL</span></span>
+            <span>SUOPES<span className="text-suopes-gold">TACTICAL</span></span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6 text-xs font-mono tracking-widest">
@@ -46,9 +46,10 @@ export function Navbar({ cartCount, onCartClick, user, onLogout }: NavbarProps) 
         </div>
 
         <div className="flex items-center gap-4 md:gap-6">
+          {/* User section — visible only on desktop */}
           {user ? (
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex flex-col items-end">
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex flex-col items-end">
                 <span className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Operador</span>
                 <span className="text-xs font-bold text-suopes-gold">{user.name}</span>
               </div>
@@ -63,7 +64,7 @@ export function Navbar({ cartCount, onCartClick, user, onLogout }: NavbarProps) 
           ) : (
             <Link 
               to="/login"
-              className="p-2 hover:bg-suopes-gray transition-colors rounded-full text-suopes-muted"
+              className="hidden md:flex p-2 hover:bg-suopes-gray transition-colors rounded-full text-suopes-muted"
               title="Entrar"
             >
               <UserIcon size={20} />
@@ -97,7 +98,21 @@ export function Navbar({ cartCount, onCartClick, user, onLogout }: NavbarProps) 
               <Link to="/galeria" onClick={() => setIsMenuOpen(false)}>GALERIA OPERACIONAL</Link>
               {user && <Link to="/compras" onClick={() => setIsMenuOpen(false)}>MINHAS COMPRAS</Link>}
               {user?.role === "admin" && <Link to="/admin" onClick={() => setIsMenuOpen(false)}>PAINEL ADMIN</Link>}
-              {!user && <Link to="/login" onClick={() => setIsMenuOpen(false)}>ENTRAR</Link>}
+              {!user && (
+                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-suopes-gold">
+                  <UserIcon size={16} />
+                  ENTRAR
+                </Link>
+              )}
+              {user && (
+                <button
+                  onClick={() => { onLogout(); setIsMenuOpen(false); }}
+                  className="flex items-center gap-2 text-suopes-red text-left font-mono tracking-widest text-sm"
+                >
+                  <LogOut size={16} />
+                  SAIR
+                </button>
+              )}
             </div>
           </motion.div>
         )}
