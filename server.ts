@@ -230,6 +230,12 @@ async function initializeDatabase() {
     // Adicionar sort_order em bancos existentes
     try { await db.execute("ALTER TABLE gallery ADD COLUMN sort_order INT DEFAULT 0"); } catch(e) { /* já existe */ }
 
+    // Adicionar free_shipping em cupons existentes (combinação de benefícios)
+    try { await db.execute("ALTER TABLE coupons ADD COLUMN free_shipping TINYINT(1) DEFAULT 0"); } catch(e) { /* já existe */ }
+
+    // Adicionar coluna de link de pagamento nos pedidos (cartão de crédito)
+    try { await db.execute("ALTER TABLE orders ADD COLUMN mp_payment_url TEXT DEFAULT NULL"); } catch(e) { /* já existe */ }
+
     // TABELA DE CUPONS
     await db.query(`
       CREATE TABLE IF NOT EXISTS coupons (
@@ -444,8 +450,9 @@ function generateOrderEmailHTML(options: {
   couponDiscount?: number;
   shippingAddress?: any;
   paymentMethod?: string;
+  paymentUrl?: string | null;
 }): string {
-  const { type, customerName, orderId, items, subtotal, shippingCost, total, couponCode, couponDiscount, shippingAddress, paymentMethod } = options;
+  const { type, customerName, orderId, items, subtotal, shippingCost, total, couponCode, couponDiscount, shippingAddress, paymentMethod, paymentUrl } = options;
 
   const isApproved = type === "approved";
   const headline = isApproved 
@@ -618,10 +625,10 @@ function generateOrderEmailHTML(options: {
           <!-- CTA -->
           <tr>
             <td style="padding: 32px 40px; text-align: center;">
-              ${!isApproved && paymentMethod === 'pix' ? `
-              <p style="margin: 0 0 16px 0; font-size: 13px; color: #999; font-family: monospace;">Se precisar acessar seu pagamento novamente, acesse:</p>
-              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: #d4a843; color: #0a0a0a; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace; margin-bottom: 12px;">ACESSAR MEU PAGAMENTO PIX</a>
-              <br/>
+              ${!isApproved && paymentUrl ? `
+              <p style="margin: 0 0 16px 0; font-size: 13px; color: #999; font-family: monospace;">Se precisar acessar seu pagamento novamente, clique abaixo:</p>
+              <a href="${paymentUrl}" style="display: inline-block; padding: 14px 40px; background-color: #d4a843; color: #0a0a0a; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace; margin-bottom: 12px;">ACESSAR MEU PAGAMENTO</a>
+              <br/><br/>
               ` : ''}
               <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: ${isApproved ? '#22c55e' : '#1a1a1a'}; color: ${isApproved ? '#000' : '#d4a843'}; border: 1px solid ${isApproved ? '#22c55e' : '#d4a843'}; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">ACOMPANHAR PEDIDO</a>
             </td>
@@ -652,7 +659,7 @@ async function sendOrderEmail(type: "confirmation" | "approved", orderId: string
   try {
     // Buscar dados do pedido
     const [orders]: any = await db.execute(
-      "SELECT id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, coupon_code, coupon_discount FROM orders WHERE id = ?",
+      "SELECT id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, coupon_code, coupon_discount, mp_payment_url, mp_qr_code FROM orders WHERE id = ?",
       [orderId]
     );
     if (orders.length === 0) {
@@ -684,6 +691,16 @@ async function sendOrderEmail(type: "confirmation" | "approved", orderId: string
     const subtotal = emailItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const shippingCost = parseFloat(order.shipping_cost) || 0;
 
+    // Resolver o link de pagamento: credit_card usa init_point salvo, pix usa /compras
+    let paymentUrl: string | null = null;
+    if (type === "confirmation") {
+      if (order.mp_payment_url) {
+        paymentUrl = order.mp_payment_url;
+      } else if (order.payment_method === "pix" && order.mp_qr_code) {
+        paymentUrl = `${SITE_URL}/compras`;
+      }
+    }
+
     const html = generateOrderEmailHTML({
       type,
       customerName: order.customer_name,
@@ -695,7 +712,8 @@ async function sendOrderEmail(type: "confirmation" | "approved", orderId: string
       couponCode: order.coupon_code,
       couponDiscount: parseFloat(order.coupon_discount) || 0,
       shippingAddress: order.shipping_address,
-      paymentMethod: order.payment_method
+      paymentMethod: order.payment_method,
+      paymentUrl
     });
 
     const subject = type === "approved" 
@@ -1336,7 +1354,7 @@ async function startServer() {
   // Admin: Criar cupom
   app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
     try {
-      const { code, type, value, minPurchase, maxDiscount, maxUses, maxUsesPerUser, appliesTo, startsAt, expiresAt } = req.body;
+      const { code, type, value, minPurchase, maxDiscount, maxUses, maxUsesPerUser, appliesTo, startsAt, expiresAt, freeShipping } = req.body;
       
       if (!code || !type) {
         return res.status(400).json({ message: "Código e tipo são obrigatórios." });
@@ -1349,8 +1367,8 @@ async function startServer() {
       }
 
       await db.execute(
-        `INSERT INTO coupons (code, type, value, min_purchase, max_discount, max_uses, max_uses_per_user, applies_to, starts_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO coupons (code, type, value, min_purchase, max_discount, max_uses, max_uses_per_user, applies_to, starts_at, expires_at, free_shipping)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           code.toUpperCase().trim(),
           type,
@@ -1361,7 +1379,8 @@ async function startServer() {
           maxUsesPerUser || null,
           appliesTo || null,
           startsAt || null,
-          expiresAt || null
+          expiresAt || null,
+          freeShipping ? 1 : 0
         ]
       );
 
@@ -1451,7 +1470,8 @@ async function startServer() {
 
       // Calcular desconto
       let discount = 0;
-      let freeShipping = false;
+      // free_shipping pode estar na coluna NOVA (combined) ou no type antigo
+      let freeShipping = coupon.free_shipping === 1 || coupon.type === "free_shipping";
 
       if (coupon.type === "percentage") {
         discount = (subtotal * parseFloat(coupon.value)) / 100;
@@ -1460,11 +1480,18 @@ async function startServer() {
         }
       } else if (coupon.type === "fixed") {
         discount = parseFloat(coupon.value);
-        discount = Math.min(discount, subtotal); // Não pode exceder o subtotal
+        discount = Math.min(discount, subtotal);
       } else if (coupon.type === "free_shipping") {
         freeShipping = true;
         discount = 0;
       }
+
+      // Montar descrição combinada
+      let description = "";
+      if (coupon.type === "percentage") description = `${coupon.value}% OFF`;
+      else if (coupon.type === "fixed") description = `R$ ${parseFloat(coupon.value).toFixed(2)} OFF`;
+      else description = "FRETE GRÁTIS";
+      if (freeShipping && coupon.type !== "free_shipping") description += " + FRETE GRÁTIS";
 
       res.json({
         valid: true,
@@ -1473,11 +1500,7 @@ async function startServer() {
         type: coupon.type,
         discount: parseFloat(discount.toFixed(2)),
         freeShipping,
-        description: coupon.type === "percentage" 
-          ? `${coupon.value}% OFF` 
-          : coupon.type === "fixed" 
-            ? `R$ ${parseFloat(coupon.value).toFixed(2)} OFF`
-            : "FRETE GRÁTIS"
+        description
       });
     } catch (err) {
       console.error("Erro ao validar cupom:", err);
@@ -1739,9 +1762,14 @@ async function startServer() {
       }
 
       // Gravar pedido no banco
+      // Resolver mp_payment_url: credit_card usa o init_point do MP, pix usa /compras
+      const mp_payment_url = paymentMethod === "credit_card" && redirectUrl && !redirectUrl.startsWith("/")
+        ? redirectUrl
+        : null;
+
       const query = `
-        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code, coupon_code, coupon_discount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO orders (id, user_id, customer_name, customer_email, total, shipping_cost, shipping_address, payment_method, customer_cpf, customer_phone, mp_id, mp_qr_code_base64, mp_qr_code, coupon_code, coupon_discount, mp_payment_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       await connection.execute(query, [
         orderId, 
@@ -1758,7 +1786,8 @@ async function startServer() {
         mp_qr_code_base64,
         mp_qr_code,
         couponCode || null,
-        appliedDiscount
+        appliedDiscount,
+        mp_payment_url
       ]);
 
       // Gravar itens do pedido com product_id para rastreamento de estoque

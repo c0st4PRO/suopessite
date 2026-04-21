@@ -45,7 +45,7 @@ export function Admin({ user }: { user: UserType | null }) {
   const [couponForm, setCouponForm] = useState({
     code: "", type: "percentage" as "percentage" | "fixed" | "free_shipping",
     value: "", minPurchase: "", maxDiscount: "", maxUses: "", maxUsesPerUser: "",
-    startsAt: "", expiresAt: ""
+    startsAt: "", expiresAt: "", freeShipping: false
   });
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
@@ -148,7 +148,7 @@ export function Admin({ user }: { user: UserType | null }) {
       const data = await res.json();
       if (res.ok) {
         setCouponSuccess("Cupom criado com sucesso!");
-        setCouponForm({ code: "", type: "percentage", value: "", minPurchase: "", maxDiscount: "", maxUses: "", maxUsesPerUser: "", startsAt: "", expiresAt: "" });
+        setCouponForm({ code: "", type: "percentage", value: "", minPurchase: "", maxDiscount: "", maxUses: "", maxUsesPerUser: "", startsAt: "", expiresAt: "", freeShipping: false });
         fetchCoupons();
       } else {
         setCouponError(data.message || "Erro ao criar cupom.");
@@ -1342,6 +1342,27 @@ export function Admin({ user }: { user: UserType | null }) {
                 />
               </div>
 
+              {/* Toggle: Incluir Frete Grátis (só aparece para cupons com desconto) */}
+              {couponForm.type !== "free_shipping" && (
+                <div className="flex items-center justify-between p-3 border border-suopes-gray bg-suopes-gray/5">
+                  <div>
+                    <span className="text-[10px] font-mono text-suopes-gold uppercase tracking-widest">Incluir Frete Grátis</span>
+                    <p className="text-[8px] font-mono text-suopes-muted mt-0.5">Combina desconto + frete grátis no mesmo cupom</p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={couponForm.freeShipping}
+                      onChange={(e) => setCouponForm({...couponForm, freeShipping: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-suopes-gray rounded-full peer peer-checked:bg-suopes-gold relative transition-colors">
+                      <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${couponForm.freeShipping ? "translate-x-5" : ""}`} />
+                    </div>
+                  </label>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Máx Usos Total</label>
@@ -1440,6 +1461,9 @@ export function Admin({ user }: { user: UserType | null }) {
                               }`}>
                                 {c.type === 'percentage' ? `${c.value}% OFF` : c.type === 'fixed' ? `R$ ${parseFloat(c.value).toFixed(2)} OFF` : 'FRETE GRÁTIS'}
                               </span>
+                              {c.free_shipping && c.type !== 'free_shipping' && (
+                                <span className="text-[8px] font-mono px-2 py-0.5 border text-green-400 border-green-400/30 bg-green-400/10">+ FRETE GRÁTIS</span>
+                              )}
                               {isExpired && <span className="text-[8px] font-mono text-suopes-red">EXPIRADO</span>}
                               {isExhausted && <span className="text-[8px] font-mono text-suopes-red">ESGOTADO</span>}
                             </div>
