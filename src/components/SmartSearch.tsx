@@ -187,7 +187,7 @@ export function SmartSearch({ products, onSearch, onCategorySelect }: SmartSearc
   }
 
   // Popular categories for quick search
-  const quickTags = ["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES"];
+  const quickTags = ["COLETES", "BONÉS", "CINTOS", "BANDOLEIRAS", "MOCHILAS"];
 
   return (
     <div ref={containerRef} className="relative w-full md:max-w-md">

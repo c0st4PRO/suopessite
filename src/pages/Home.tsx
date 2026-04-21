@@ -60,9 +60,14 @@ export function Home({ onAddToCart }: HomeProps) {
     "JAQUETAS", 
     "CAMISAS", 
     "PATCHES", 
-    "HEADWEAR", 
-    "ACESSÓRIOS",
-    "LINHA ESPECIAL",
+    "BONÉS",
+    "CINTOS",
+    "BANDOLEIRAS",
+    "PORTA CARREGADORES",
+    "EQUIPAMENTO",
+    "VESTUÁRIO",
+    "CALÇADOS",
+    "PROTEÇÃO",
     "PRÉ-VENDA"
   ];
 

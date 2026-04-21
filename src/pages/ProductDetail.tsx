@@ -373,7 +373,7 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   <div className="flex-grow">
                     <label className="text-[8px] font-mono text-suopes-muted uppercase tracking-widest block mb-1">Categorias</label>
                     <div className="flex flex-wrap gap-1.5">
-                      {["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES", "HEADWEAR", "ACESSÓRIOS", "EQUIPAMENTO", "VESTUÁRIO", "CALÇADOS", "PROTEÇÃO", "LINHA ESPECIAL"].map(cat => {
+                      {["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES", "BONÉS", "CINTOS", "BANDOLEIRAS", "PORTA CARREGADORES", "EQUIPAMENTO", "VESTUÁRIO", "CALÇADOS", "PROTEÇÃO"].map(cat => {
                         const cats = (editForm.category || "").split(",").map((c: string) => c.trim()).filter(Boolean);
                         const isSelected = cats.includes(cat);
                         return (
