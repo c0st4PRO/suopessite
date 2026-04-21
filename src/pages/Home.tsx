@@ -161,6 +161,8 @@ export function Home({ onAddToCart }: HomeProps) {
               transition={{ duration: 1.5, ease: "easeInOut" }}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
+              onContextMenu={(e) => e.preventDefault()}
+              draggable={false}
             />
           </AnimatePresence>
           <div className="absolute inset-0 bg-gradient-to-t from-suopes-black via-transparent to-transparent" />

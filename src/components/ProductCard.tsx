@@ -85,6 +85,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
               }`}
               referrerPolicy="no-referrer"
               draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           ))}
 

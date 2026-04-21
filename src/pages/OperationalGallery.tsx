@@ -182,6 +182,8 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-700"
                     referrerPolicy="no-referrer"
+                    onContextMenu={(e) => e.preventDefault()}
+                    draggable={false}
                   />
                   <div className="absolute inset-0 bg-suopes-black/60 flex items-center justify-center gap-4">
                     <button 
@@ -221,6 +223,8 @@ export function OperationalGallery({ user }: OperationalGalleryProps) {
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     referrerPolicy="no-referrer"
+                    onContextMenu={(e) => e.preventDefault()}
+                    draggable={false}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-suopes-black via-transparent to-transparent opacity-80"></div>
                   

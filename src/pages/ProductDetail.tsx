@@ -298,6 +298,8 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
               alt={displayProduct.name} 
               className="w-full h-full object-cover transition-all duration-700"
               referrerPolicy="no-referrer"
+              onContextMenu={(e) => e.preventDefault()}
+              draggable={false}
             />
             
             {/* Zoom Magnifier */}
@@ -345,6 +347,8 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                     activeImageIndex === i ? "opacity-100" : "opacity-50 hover:opacity-100"
                   }`}
                   referrerPolicy="no-referrer"
+                  onContextMenu={(e) => e.preventDefault()}
+                  draggable={false}
                 />
                 {isEditing && (
                   <button 
