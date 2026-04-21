@@ -2,6 +2,7 @@ export interface ProductColor {
   name: string;
   hex: string;
   inStock: boolean;
+  stockQuantity?: number;
   imageIndex?: number;
   sizeStock?: { [size: string]: boolean };
 }
@@ -24,6 +25,7 @@ export interface Product {
   stockQuantity?: number;
   isPresale?: boolean;
   presaleDate?: string;
+  recommendedProductId?: string;
 }
 
 export interface CartItem extends Product {

@@ -248,7 +248,9 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
   const isSizeInStock = currentColor?.sizeStock ? currentColor.sizeStock[selectedSize] !== false : true;
   const isOutOfStock = !product.inStock || (currentColor?.inStock === false) || (product.hasSizes && !isSizeInStock);
 
-  const relatedProduct = allProducts.find(p => p.id !== id && p.category === product.category) || allProducts.find(p => p.id !== id);
+  const relatedProduct = product.recommendedProductId 
+    ? allProducts.find(p => p.id === product.recommendedProductId)
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
@@ -479,6 +481,42 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                   >
                     {editForm.inStock ? "EM ESTOQUE" : "ESGOTADO"}
                   </button>
+                </div>
+
+                {/* Seletor de Produto Recomendado ("Compre Junto") */}
+                <div className="mt-4 pt-4 border-t border-suopes-gray">
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">
+                    COMPRE JUNTO (RECOMENDAÇÃO MANUAL)
+                  </label>
+                  <select
+                    value={editForm.recommendedProductId || ""}
+                    onChange={(e) => setEditForm({...editForm, recommendedProductId: e.target.value || undefined})}
+                    className="w-full bg-suopes-black border border-suopes-gray p-3 text-xs font-mono text-suopes-gold outline-none focus:border-suopes-gold"
+                  >
+                    <option value="">[ NENHUM - SEM RECOMENDAÇÃO ]</option>
+                    {allProducts.filter(p => p.id !== id).map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — R$ {Number(p.price || 0).toFixed(2)} ({p.sku})
+                      </option>
+                    ))}
+                  </select>
+                  {editForm.recommendedProductId && (
+                    <div className="mt-2 flex items-center gap-3 p-2 border border-suopes-gold/30 bg-suopes-gold/5">
+                      {(() => {
+                        const rec = allProducts.find(p => p.id === editForm.recommendedProductId);
+                        if (!rec) return <span className="text-[9px] text-suopes-red font-mono">PRODUTO NÃO ENCONTRADO</span>;
+                        return (
+                          <>
+                            <img src={rec.image} alt={rec.name} className="w-10 h-10 object-cover" referrerPolicy="no-referrer" />
+                            <div>
+                              <p className="text-[9px] font-mono text-suopes-gold font-bold uppercase truncate">{rec.name}</p>
+                              <p className="text-[8px] font-mono text-suopes-muted">R$ {Number(rec.price || 0).toFixed(2)}</p>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1062,6 +1100,20 @@ export function ProductDetail({ onAddToCart, user }: ProductDetailProps) {
                     <option value={2}>Imagem 3</option>
                     <option value={3}>Imagem 4</option>
                   </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest block mb-2">Quantidade em Estoque (desta cor)</label>
+                  <input 
+                    type="number"
+                    min="0"
+                    value={tempColor.stockQuantity ?? 0}
+                    onChange={(e) => setTempColor({ ...tempColor, stockQuantity: parseInt(e.target.value) || 0, inStock: (parseInt(e.target.value) || 0) > 0 })}
+                    className="w-full bg-suopes-black border border-suopes-gray p-3 text-xs font-mono text-suopes-gold outline-none focus:border-suopes-gold"
+                    placeholder="0"
+                  />
+                  <p className={`text-[9px] font-mono mt-1 ${(tempColor.stockQuantity ?? 0) > 0 ? 'text-green-500' : 'text-suopes-red'}`}>
+                    {(tempColor.stockQuantity ?? 0) > 0 ? `✓ ${tempColor.stockQuantity} UN EM ESTOQUE` : '✗ ESGOTADO'}
+                  </p>
                 </div>
                 
                 {editForm?.hasSizes && editForm.sizes && editForm.sizes.length > 0 && (
