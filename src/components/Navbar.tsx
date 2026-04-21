@@ -28,7 +28,7 @@ export function Navbar({ cartCount, onCartClick, user, onLogout }: NavbarProps) 
           
           <Link to="/" className="text-2xl font-black tracking-tighter flex items-center gap-2">
             <img src="/favicon.png" alt="Suopes Logo" className="w-8 h-8 object-contain" />
-            <span>SUOPES<span className="text-suopes-gold">TACTICAL</span></span>
+            <span className="hidden md:inline">SUOPES<span className="text-suopes-gold">TACTICAL</span></span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6 text-xs font-mono tracking-widest">
