@@ -15,7 +15,9 @@ export function Home({ onAddToCart }: HomeProps) {
   const [loading, setLoading] = useState(true);
   const [booting, setBooting] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("TODOS");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    return sessionStorage.getItem("suopes_category") || "TODOS";
+  });
   
   // New Filters
   const [selectedColor, setSelectedColor] = useState("");
@@ -58,18 +60,18 @@ export function Home({ onAddToCart }: HomeProps) {
     "COLETES", 
     "MOCHILAS", 
     "JAQUETAS", 
-    "CAMISAS", 
-    "PATCHES", 
     "BONÉS",
     "CINTOS",
     "BANDOLEIRAS",
     "PORTA CARREGADORES",
-    "EQUIPAMENTO",
-    "VESTUÁRIO",
-    "CALÇADOS",
-    "PROTEÇÃO",
     "PRÉ-VENDA"
   ];
+
+  // Memoizar a categoria selecionada no sessionStorage
+  const handleCategorySelect = (cat: string) => {
+    setSelectedCategory(cat);
+    sessionStorage.setItem("suopes_category", cat);
+  };
 
   const allColors = Array.from(new Set(products.flatMap(p => p.colors?.map(c => c.name) || []))).filter(Boolean) as string[];
   const allSizes = Array.from(new Set(products.flatMap(p => p.sizes || []))).filter(Boolean) as string[];
@@ -254,7 +256,7 @@ export function Home({ onAddToCart }: HomeProps) {
             <SmartSearch 
               products={products} 
               onSearch={setSearchQuery}
-              onCategorySelect={setSelectedCategory}
+              onCategorySelect={handleCategorySelect}
             />
 
             {/* Category Filter Sliders */}
@@ -262,7 +264,7 @@ export function Home({ onAddToCart }: HomeProps) {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => handleCategorySelect(cat)}
                   className={`px-3 py-2 text-[10px] font-mono tracking-widest border transition-all duration-300 relative overflow-hidden group ${
                     selectedCategory === cat
                       ? "bg-suopes-gold border-suopes-gold text-suopes-black"

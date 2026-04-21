@@ -112,6 +112,11 @@ async function initializeDatabase() {
       await db.execute("ALTER TABLE orders ADD COLUMN carrier VARCHAR(100) DEFAULT NULL");
     } catch (e) {
     }
+    try {
+      await db.execute("UPDATE products SET category = REPLACE(category, 'HEADWEAR', 'BON\xC9S') WHERE category LIKE '%HEADWEAR%'");
+      console.log("[MIGRATION] Categorias HEADWEAR \u2192 BON\xC9S migradas.");
+    } catch (e) {
+    }
     await db.query(`
       CREATE TABLE IF NOT EXISTS order_items (
         id INT PRIMARY KEY AUTO_INCREMENT,

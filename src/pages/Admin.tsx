@@ -558,7 +558,7 @@ export function Admin({ user }: { user: UserType | null }) {
           <div className="space-y-2">
             <label className="text-[10px] font-mono text-suopes-muted uppercase tracking-widest">Categorias (selecione uma ou mais)</label>
             <div className="flex flex-wrap gap-2">
-              {["COLETES", "MOCHILAS", "JAQUETAS", "CAMISAS", "PATCHES", "BONÉS", "CINTOS", "BANDOLEIRAS", "PORTA CARREGADORES", "EQUIPAMENTO", "VESTUÁRIO", "CALÇADOS", "PROTEÇÃO"].map(cat => {
+              {["COLETES", "MOCHILAS", "JAQUETAS", "BONÉS", "CINTOS", "BANDOLEIRAS", "PORTA CARREGADORES"].map(cat => {
                 const selected = category.split(",").map(c => c.trim()).filter(Boolean).includes(cat);
                 return (
                   <button

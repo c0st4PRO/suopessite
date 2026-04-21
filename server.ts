@@ -119,6 +119,12 @@ async function initializeDatabase() {
     try { await db.execute("ALTER TABLE orders ADD COLUMN tracking_code VARCHAR(100) DEFAULT NULL"); } catch(e) {}
     try { await db.execute("ALTER TABLE orders ADD COLUMN carrier VARCHAR(100) DEFAULT NULL"); } catch(e) {}
 
+    // Migração de categorias: renomear HEADWEAR → BONÉS em produtos existentes
+    try {
+      await db.execute("UPDATE products SET category = REPLACE(category, 'HEADWEAR', 'BONÉS') WHERE category LIKE '%HEADWEAR%'");
+      console.log("[MIGRATION] Categorias HEADWEAR → BONÉS migradas.");
+    } catch(e) {}
+
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS order_items (
