@@ -122,8 +122,17 @@ async function initializeDatabase() {
     // Migração de categorias: renomear HEADWEAR → BONÉS em produtos existentes
     try {
       await db.execute("UPDATE products SET category = REPLACE(category, 'HEADWEAR', 'BONÉS') WHERE category LIKE '%HEADWEAR%'");
-      console.log("[MIGRATION] Categorias HEADWEAR → BONÉS migradas.");
-    } catch(e) {}
+      
+      // Limpeza de categorias removidas (Remove a string e limpa vírgulas extras)
+      const oldCats = ['LINHA ESPECIAL', 'PATCHES', 'CAMISAS', 'ACESSÓRIOS', 'EQUIPAMENTO', 'VESTUÁRIO', 'CALÇADOS', 'PROTEÇÃO'];
+      for (const cat of oldCats) {
+        await db.execute(`UPDATE products SET category = TRIM(BOTH ',' FROM REPLACE(REPLACE(category, ?, ''), ',,', ',')) WHERE category LIKE ?`, [cat, `%${cat}%`]);
+      }
+      
+      console.log("[MIGRATION] Limpeza de categorias concluída.");
+    } catch(e) {
+      console.error("[MIGRATION_ERROR]", e);
+    }
 
 
     await db.query(`

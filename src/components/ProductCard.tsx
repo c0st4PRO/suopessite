@@ -90,8 +90,10 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
           {/* Category Badges */}
           <div className="absolute top-4 left-4 flex flex-wrap gap-1 z-10">
-            {(product.category || "").split(",").map(c => c.trim()).filter(Boolean).map((cat, i) => (
-              <span key={i} className="bg-suopes-black/80 backdrop-blur-sm px-2 py-1 text-[8px] font-mono tracking-widest border border-suopes-gold text-suopes-gold">
+            {(product.category || "").split(",").map(c => c.trim()).filter(Boolean)
+              .filter(cat => ["COLETES", "MOCHILAS", "JAQUETAS", "BONÉS", "CINTOS", "BANDOLEIRAS", "PORTA CARREGADORES", "PRÉ-VENDA"].includes(cat))
+              .map((cat, i) => (
+              <span key={i} className="bg-suopes-black/80 backdrop-blur-sm px-2 py-1 text-[8px] font-mono tracking-widest border border-suopes-gold text-suopes-gold shadow-lg shadow-black/20">
                 {cat}
               </span>
             ))}
@@ -99,33 +101,33 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
           {/* Stock/Presale Badge */}
           {product.isPresale ? (
-            <div className="absolute top-4 right-4 bg-suopes-gold px-2 py-1 text-[8px] font-mono tracking-widest text-suopes-black font-bold z-10">
+            <div className="absolute top-4 right-4 bg-suopes-gold px-2 py-1 text-[8px] font-mono tracking-widest text-suopes-black font-bold z-10 shadow-lg shadow-black/20">
               PRÉ-VENDA
             </div>
           ) : !product.inStock && (
-            <div className="absolute top-4 right-4 bg-suopes-red px-2 py-1 text-[8px] font-mono tracking-widest text-white border border-suopes-red/50 z-10">
+            <div className="absolute top-4 right-4 bg-suopes-red px-2 py-1 text-[8px] font-mono tracking-widest text-white border border-suopes-red/50 z-10 shadow-lg shadow-black/20">
               ESGOTADO
             </div>
           )}
 
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-suopes-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+          {/* Floating Action Button - Bottom Right corner of image */}
+          <div className="absolute bottom-4 right-4 z-40 pointer-events-auto">
             {product.inStock ? (
               <button 
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   onAddToCart();
                 }}
-                className="btn-suopes scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2"
+                className="w-12 h-12 bg-suopes-gold text-suopes-black rounded-full flex items-center justify-center shadow-2xl shadow-black/50 scale-0 group-hover:scale-100 transition-all duration-300 hover:bg-white hover:scale-110 active:scale-95"
+                title="Adicionar ao Carrinho"
               >
-                <Plus size={16} /> {product.isPresale ? "GARANTIR PRÉ-VENDA" : "ADICIONAR AO CARRINHO"}
+                <Plus size={24} />
               </button>
             ) : (
-              <span 
-                className="px-6 py-3 bg-suopes-red text-white hover:bg-white hover:text-suopes-red scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 font-mono text-[10px] tracking-[0.2em] font-bold uppercase cursor-pointer flex items-center justify-center"
-              >
-                AVISE-ME QUANDO CHEGAR
-              </span>
+              <div className="w-12 h-12 bg-suopes-red text-white rounded-full flex items-center justify-center shadow-2xl shadow-black/50 scale-0 group-hover:scale-100 transition-all duration-300 opacity-80">
+                <span className="text-[8px] font-bold leading-none text-center">OFF<br/>STOCK</span>
+              </div>
             )}
           </div>
         </Link>

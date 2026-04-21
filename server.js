@@ -114,8 +114,13 @@ async function initializeDatabase() {
     }
     try {
       await db.execute("UPDATE products SET category = REPLACE(category, 'HEADWEAR', 'BON\xC9S') WHERE category LIKE '%HEADWEAR%'");
-      console.log("[MIGRATION] Categorias HEADWEAR \u2192 BON\xC9S migradas.");
+      const oldCats = ["LINHA ESPECIAL", "PATCHES", "CAMISAS", "ACESS\xD3RIOS", "EQUIPAMENTO", "VESTU\xC1RIO", "CAL\xC7ADOS", "PROTE\xC7\xC3O"];
+      for (const cat of oldCats) {
+        await db.execute(`UPDATE products SET category = TRIM(BOTH ',' FROM REPLACE(REPLACE(category, ?, ''), ',,', ',')) WHERE category LIKE ?`, [cat, `%${cat}%`]);
+      }
+      console.log("[MIGRATION] Limpeza de categorias conclu\xEDda.");
     } catch (e) {
+      console.error("[MIGRATION_ERROR]", e);
     }
     await db.query(`
       CREATE TABLE IF NOT EXISTS order_items (
