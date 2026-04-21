@@ -618,7 +618,12 @@ function generateOrderEmailHTML(options: {
           <!-- CTA -->
           <tr>
             <td style="padding: 32px 40px; text-align: center;">
-              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: #d4a843; color: #0a0a0a; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">ACOMPANHAR PEDIDO</a>
+              ${!isApproved && paymentMethod === 'pix' ? `
+              <p style="margin: 0 0 16px 0; font-size: 13px; color: #999; font-family: monospace;">Se precisar acessar seu pagamento novamente, acesse:</p>
+              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: #d4a843; color: #0a0a0a; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace; margin-bottom: 12px;">ACESSAR MEU PAGAMENTO PIX</a>
+              <br/>
+              ` : ''}
+              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: ${isApproved ? '#22c55e' : '#1a1a1a'}; color: ${isApproved ? '#000' : '#d4a843'}; border: 1px solid ${isApproved ? '#22c55e' : '#d4a843'}; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">ACOMPANHAR PEDIDO</a>
             </td>
           </tr>
 
@@ -1483,17 +1488,16 @@ async function startServer() {
   app.post("/api/shipping", (req, res) => {
     const { cep, totalAmount } = req.body;
     if (!cep) return res.status(400).json({ message: "CEP obrigatório" });
-    
-    // Simulador mock de frete
+
     const options = [
-      { id: "pac", name: "PAC Correios (PROMOÇÃO TESTE)", cost: 0.00, time: "7 a 10 dias úteis" },
-      { id: "sedex", name: "SEDEX Míssil (PROMOÇÃO TESTE)", cost: 0.00, time: "2 a 3 dias úteis" }
+      { id: "pac", name: "PAC Correios", cost: 30.00, time: "7 a 10 dias úteis" },
+      { id: "sedex", name: "SEDEX Correios", cost: 50.00, time: "2 a 3 dias úteis" }
     ];
 
     if (totalAmount && totalAmount >= 399) {
       options.unshift({ 
         id: "free", 
-        name: "FRETE GRÁTIS (Transportadora Própria)", 
+        name: "FRETE GRÁTIS (Acima de R$399)", 
         cost: 0.00, 
         time: "7 a 14 dias úteis" 
       });
