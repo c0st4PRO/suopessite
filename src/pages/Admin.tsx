@@ -292,6 +292,24 @@ export function Admin({ user }: { user: UserType | null }) {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o pedido ${orderId} permanentemente?`)) return;
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${user?.token}` }
+      });
+      if (res.ok) {
+        fetchAdminOrders();
+      } else {
+        const data = await res.json();
+        alert(`Erro: ${data.message}`);
+      }
+    } catch (err) {
+      alert("Falha de comunicação ao deletar pedido.");
+    }
+  };
+
   const filteredOrders = orderFilter === 'todos' 
     ? adminOrders 
     : adminOrders.filter(o => o.status === orderFilter);
@@ -1027,6 +1045,13 @@ export function Admin({ user }: { user: UserType | null }) {
                       {new Date(order.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
                     </span>
                     <span className="text-suopes-gold font-bold">R$ {Number(order.total || 0).toFixed(2)}</span>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                      className="ml-4 text-suopes-muted hover:text-red-500 transition-colors p-1 bg-transparent hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
+                      title="Excluir Pedido"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
 

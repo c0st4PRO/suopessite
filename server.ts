@@ -2098,6 +2098,18 @@ async function startServer() {
     }
   });
 
+  // ADMIN - DELETAR PEDIDO
+  app.delete("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+      await db.execute("DELETE FROM order_items WHERE order_id = ?", [id]);
+      await db.execute("DELETE FROM orders WHERE id = ?", [id]);
+      res.json({ success: true, message: "Pedido deletado com sucesso." });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Erro ao deletar pedido." });
+    }
+  });
 
   app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
     const { id } = req.params;
