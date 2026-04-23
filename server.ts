@@ -650,6 +650,330 @@ function generateOrderEmailHTML(options: {
 </html>`;
 }
 
+// ============================================
+// E-MAIL DE ATUALIZAÇÃO DE STATUS (SUOPES)
+// ============================================
+function generateStatusEmailHTML(options: {
+  customerName: string;
+  orderId: string;
+  status: string;
+  trackingCode?: string | null;
+  carrier?: string | null;
+  items: OrderEmailItem[];
+  total: number;
+  shippingAddress?: any;
+}): string {
+  const { customerName, orderId, status, trackingCode, carrier, items, total, shippingAddress } = options;
+
+  const statusMap: Record<string, { label: string; color: string; icon: string; message: string }> = {
+    pendente: {
+      label: "PENDENTE",
+      color: "#eab308",
+      icon: "⏳",
+      message: "Seu pedido está aguardando confirmação de pagamento."
+    },
+    processando: {
+      label: "EM PREPARAÇÃO",
+      color: "#3b82f6",
+      icon: "⚙️",
+      message: "Pagamento confirmado! Estamos separando e preparando seu equipamento tático para envio."
+    },
+    enviado: {
+      label: "ENVIADO",
+      color: "#a855f7",
+      icon: "🚚",
+      message: "Seu pedido está a caminho! Acompanhe a entrega com o código de rastreio abaixo."
+    },
+    concluido: {
+      label: "ENTREGUE",
+      color: "#22c55e",
+      icon: "✅",
+      message: "Seu equipamento foi entregue com sucesso! Esperamos que aproveite cada item."
+    },
+    cancelado: {
+      label: "CANCELADO",
+      color: "#ef4444",
+      icon: "❌",
+      message: "Seu pedido foi cancelado. Se tiver dúvidas, entre em contato conosco."
+    }
+  };
+
+  const info = statusMap[status] || { label: status.toUpperCase(), color: "#888", icon: "📋", message: "Houve uma atualização no seu pedido." };
+
+  const itemsHtml = items.map(item => {
+    const imgSrc = item.image
+      ? (item.image.startsWith("http") ? item.image : `${SITE_URL}${item.image}`)
+      : "";
+    const details = [item.color, item.size].filter(Boolean).join(" / ");
+    return `
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #2a2a2a;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              ${imgSrc ? `<td width="60" style="vertical-align: top; padding-right: 12px;">
+                <img src="${imgSrc}" alt="${item.name}" width="60" height="60" style="display: block; border: 1px solid #333; object-fit: cover;" />
+              </td>` : ""}
+              <td style="vertical-align: top;">
+                <p style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; color: #ffffff; font-family: monospace;">${item.name}</p>
+                ${details ? `<p style="margin: 0; font-size: 10px; color: #888; font-family: monospace; text-transform: uppercase;">${details}</p>` : ""}
+              </td>
+              <td style="vertical-align: top; text-align: right; white-space: nowrap;">
+                <p style="margin: 0; font-size: 12px; color: #d4a843; font-family: monospace;">${item.quantity}x R$ ${item.price.toFixed(2)}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+  }).join("");
+
+  let trackingHtml = "";
+  if (trackingCode) {
+    const carrierLabel = carrier ? carrier.toUpperCase() : "CORREIOS";
+    const trackingUrl = carrierLabel.includes("CORREIOS")
+      ? `https://www.linkcorreios.com.br/?id=${trackingCode}`
+      : `https://www.google.com/search?q=${encodeURIComponent(carrierLabel + " rastreio " + trackingCode)}`;
+    trackingHtml = `
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 24px; background: #1a1a0a; border: 2px solid ${info.color}40;">
+        <tr>
+          <td style="padding: 24px;">
+            <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: bold; color: ${info.color}; font-family: monospace; letter-spacing: 3px;">📦 RASTREAMENTO</p>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="padding: 8px 0;">
+                  <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 1px;">TRANSPORTADORA</p>
+                  <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: bold; color: #ffffff; font-family: monospace;">${carrierLabel}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
+                  <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 1px;">CÓDIGO DE RASTREIO</p>
+                  <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 900; color: #d4a843; font-family: monospace; letter-spacing: 2px;">${trackingCode}</p>
+                </td>
+              </tr>
+            </table>
+            <a href="${trackingUrl}" style="display: inline-block; margin-top: 16px; padding: 12px 32px; background-color: ${info.color}; color: #000; text-decoration: none; font-size: 11px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">RASTREAR MEU PEDIDO →</a>
+          </td>
+        </tr>
+      </table>`;
+  }
+
+  let addressHtml = "";
+  if (shippingAddress && status === "enviado") {
+    const addr = typeof shippingAddress === "string" ? JSON.parse(shippingAddress) : shippingAddress;
+    addressHtml = `
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 24px; background: #1a1a1a; border: 1px solid #2a2a2a;">
+        <tr>
+          <td style="padding: 20px;">
+            <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: bold; color: #d4a843; font-family: monospace; letter-spacing: 2px;">DESTINO DE ENTREGA</p>
+            <p style="margin: 0; font-size: 13px; color: #ccc; font-family: monospace; line-height: 1.8;">
+              ${addr.address || ""}${addr.number ? `, ${addr.number}` : ""}<br/>
+              ${addr.neighborhood || ""}<br/>
+              ${addr.city || ""} - ${addr.state || ""}<br/>
+              CEP: ${addr.cep || ""}
+            </p>
+          </td>
+        </tr>
+      </table>`;
+  }
+
+  // Progress bar visual
+  const steps = ["pendente", "processando", "enviado", "concluido"];
+  const currentStep = steps.indexOf(status);
+  const progressHtml = status !== "cancelado" ? `
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 8px;">
+      <tr>
+        ${steps.map((s, i) => {
+          const isActive = i <= currentStep;
+          const stepInfo = statusMap[s];
+          return `<td width="25%" style="text-align: center; padding: 8px 4px;">
+            <div style="width: 100%; height: 4px; background: ${isActive ? stepInfo.color : '#2a2a2a'}; margin-bottom: 8px;"></div>
+            <p style="margin: 0; font-size: 9px; color: ${isActive ? stepInfo.color : '#555'}; font-family: monospace; letter-spacing: 1px; font-weight: ${isActive ? 'bold' : 'normal'};">${stepInfo.icon} ${stepInfo.label}</p>
+          </td>`;
+        }).join("")}
+      </tr>
+    </table>` : "";
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: 'Helvetica Neue', Arial, sans-serif; color: #ffffff;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #111111; border: 1px solid #2a2a2a;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px; background: linear-gradient(135deg, #1a1a0a 0%, #111111 100%); border-bottom: 2px solid ${info.color}; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 10px; letter-spacing: 4px; color: #d4a843; font-family: monospace;">SUOPES TACTICAL</p>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: 2px;">ATUALIZAÇÃO DO PEDIDO</h1>
+            </td>
+          </tr>
+
+          <!-- Status Badge -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px; text-align: center;">
+              <table cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td style="background: ${info.color}15; border: 2px solid ${info.color}50; padding: 12px 32px; font-size: 14px; font-weight: bold; color: ${info.color}; font-family: monospace; letter-spacing: 3px;">
+                    ${info.icon} ${info.label}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Progress Bar -->
+          <tr>
+            <td style="padding: 16px 40px 0 40px;">${progressHtml}</td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 28px 40px 16px 40px;">
+              <p style="margin: 0 0 8px 0; font-size: 16px; color: #ffffff;">Olá, <strong>${customerName || "Operador"}</strong>!</p>
+              <p style="margin: 0; font-size: 14px; color: #999; line-height: 1.6;">${info.message}</p>
+            </td>
+          </tr>
+
+          <!-- Order ID -->
+          <tr>
+            <td style="padding: 0 40px 16px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #1a1a1a; border: 1px solid #2a2a2a;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 2px;">PEDIDO</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: bold; color: #d4a843; font-family: monospace;">${orderId}</p>
+                  </td>
+                  <td style="padding: 16px 20px; text-align: right;">
+                    <p style="margin: 0; font-size: 11px; color: #888; font-family: monospace; letter-spacing: 2px;">TOTAL</p>
+                    <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: bold; color: #d4a843; font-family: monospace;">R$ ${total.toFixed(2)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Tracking Info -->
+          <tr>
+            <td style="padding: 0 40px;">${trackingHtml}</td>
+          </tr>
+
+          <!-- Shipping Address -->
+          <tr>
+            <td style="padding: 0 40px;">${addressHtml}</td>
+          </tr>
+
+          <!-- Items Summary -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: bold; color: #d4a843; font-family: monospace; letter-spacing: 2px;">ITENS DO PEDIDO</p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                ${itemsHtml}
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding: 32px 40px; text-align: center;">
+              <a href="${SITE_URL}/compras" style="display: inline-block; padding: 14px 40px; background-color: #1a1a1a; color: #d4a843; border: 1px solid #d4a843; text-decoration: none; font-size: 12px; font-weight: bold; letter-spacing: 3px; font-family: monospace;">ACOMPANHAR PEDIDO</a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background: #0a0a0a; border-top: 1px solid #2a2a2a; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 10px; color: #555; font-family: monospace; letter-spacing: 2px;">SUOPES TACTICAL © ${new Date().getFullYear()}</p>
+              <p style="margin: 0; font-size: 10px; color: #444; font-family: monospace;">Equipamento tático para o operador moderno.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendStatusEmail(orderId: string, newStatus: string) {
+  if (!transporter) {
+    console.log("[EMAIL] Transporter não configurado, pulando envio de status.");
+    return;
+  }
+
+  try {
+    const [orders]: any = await db.execute(
+      "SELECT id, customer_name, customer_email, total, shipping_address, tracking_code, carrier FROM orders WHERE id = ?",
+      [orderId]
+    );
+    if (orders.length === 0) return;
+    const order = orders[0];
+
+    if (!order.customer_email || order.customer_email === "Não informado") {
+      console.log(`[EMAIL] Pedido ${orderId} sem e-mail válido para envio de status.`);
+      return;
+    }
+
+    const [items]: any = await db.execute(
+      "SELECT product_name, quantity, price, image, color, size FROM order_items WHERE order_id = ?",
+      [orderId]
+    );
+
+    const emailItems: OrderEmailItem[] = items.map((item: any) => ({
+      name: item.product_name,
+      quantity: item.quantity,
+      price: parseFloat(item.price),
+      image: item.image || undefined,
+      color: item.color || undefined,
+      size: item.size || undefined
+    }));
+
+    const statusLabels: Record<string, string> = {
+      pendente: "Aguardando Pagamento",
+      processando: "Em Preparação",
+      enviado: "Enviado",
+      concluido: "Entregue",
+      cancelado: "Cancelado"
+    };
+
+    const statusEmojis: Record<string, string> = {
+      pendente: "⏳",
+      processando: "⚙️",
+      enviado: "🚚",
+      concluido: "✅",
+      cancelado: "❌"
+    };
+
+    const html = generateStatusEmailHTML({
+      customerName: order.customer_name,
+      orderId: order.id,
+      status: newStatus,
+      trackingCode: order.tracking_code,
+      carrier: order.carrier,
+      items: emailItems,
+      total: parseFloat(order.total),
+      shippingAddress: order.shipping_address
+    });
+
+    const emoji = statusEmojis[newStatus] || "📋";
+    const label = statusLabels[newStatus] || newStatus.toUpperCase();
+
+    await transporter.sendMail({
+      from: `"SUOPES TACTICAL" <${process.env.SMTP_USER || "noreply@suopes.com"}>`,
+      to: order.customer_email,
+      subject: `${emoji} Pedido ${orderId} - ${label} | SUOPES TACTICAL`,
+      html
+    });
+
+    console.log(`[EMAIL] Status "${newStatus}" enviado para ${order.customer_email} (Pedido: ${orderId})`);
+  } catch (err) {
+    console.error(`[EMAIL] Erro ao enviar e-mail de status para pedido ${orderId}:`, err);
+  }
+}
+
 async function sendOrderEmail(type: "confirmation" | "approved", orderId: string) {
   if (!transporter) {
     console.log("[EMAIL] Transporter não configurado, pulando envio.");
@@ -2146,6 +2470,12 @@ async function startServer() {
       const [result]: any = await db.execute(query, params);
       
       if (result.affectedRows === 0) return res.status(404).json({ message: "Pedido não encontrado." });
+
+      // Enviar e-mail de atualização de status ao cliente
+      if (status) {
+        sendStatusEmail(id, status).catch(err => console.error(`[EMAIL] Erro ao enviar status email:`, err));
+      }
+
       res.json({ success: true, message: `Pedido ${id} atualizado com sucesso.` });
     } catch (err) {
       console.error(err);
