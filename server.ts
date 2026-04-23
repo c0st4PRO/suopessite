@@ -1859,17 +1859,17 @@ async function startServer() {
           const paymentData = await payment.get({ id: mpPaymentId });
           
           const mpStatus = paymentData.status;
-          console.log(`[MP WEBHOOK] Pagamento ${mpPaymentId} => Status: ${mpStatus}`);
+          const orderId = paymentData.external_reference;
+          console.log(`[MP WEBHOOK] Pagamento ${mpPaymentId} => Status: ${mpStatus}, Order: ${orderId}`);
 
           // Buscar status anterior antes de atualizar
-          const [prevOrders]: any = await db.execute("SELECT id, payment_status FROM orders WHERE mp_id = ?", [mpPaymentId]);
+          const [prevOrders]: any = await db.execute("SELECT id, payment_status FROM orders WHERE id = ?", [orderId]);
           const prevStatus = prevOrders.length > 0 ? prevOrders[0].payment_status : null;
-          const orderId = prevOrders.length > 0 ? prevOrders[0].id : null;
 
-          await db.execute("UPDATE orders SET payment_status = ? WHERE mp_id = ?", [mpStatus, mpPaymentId]);
+          await db.execute("UPDATE orders SET payment_status = ?, mp_id = ? WHERE id = ?", [mpStatus, mpPaymentId, orderId]);
           
           if (mpStatus === "approved") {
-            await db.execute("UPDATE orders SET status = 'processando' WHERE mp_id = ? AND status = 'pendente'", [mpPaymentId]);
+            await db.execute("UPDATE orders SET status = 'processando' WHERE id = ? AND status = 'pendente'", [orderId]);
             // 📧 Enviar e-mail de pagamento confirmado (apenas se status anterior era diferente)
             if (prevStatus !== "approved" && orderId) {
               sendOrderEmail("approved", orderId);
@@ -1878,7 +1878,7 @@ async function startServer() {
 
           // 🔄 RESTAURAR ESTOQUE: Se pagamento foi cancelado/rejeitado e NÃO era já cancelado antes
           if ((mpStatus === "cancelled" || mpStatus === "rejected") && prevStatus !== "cancelled" && prevStatus !== "rejected") {
-            await db.execute("UPDATE orders SET status = 'cancelado' WHERE mp_id = ?", [mpPaymentId]);
+            await db.execute("UPDATE orders SET status = 'cancelado' WHERE id = ?", [orderId]);
             if (orderId) {
               await restoreStockForOrder(orderId);
             }
@@ -1902,29 +1902,37 @@ async function startServer() {
       let order = orders[0];
       let currentStatus = order.payment_status;
 
-      // SIMULADOR DE APROVAÇÃO PARA TESTES (MOCK) - REMOVIDO PARA MODO REAL
+      // SIMULADOR DE APROVAÇÃO PARA TESTES (MOCK)
       if (currentStatus === 'pending' && order.mp_id && order.mp_id.startsWith('MOCK')) {
-         // Apenas mantém o status pendente no modo mock se não quisermos simulador
-      } else if (currentStatus === 'pending' && order.mp_id && process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI") {
+         // Apenas mantém o status pendente no modo mock
+      } else if (currentStatus === 'pending' && process.env.MP_ACCESS_TOKEN && process.env.MP_ACCESS_TOKEN !== "APP_USR-SEU_TOKEN_DE_TESTE_OU_PRODUCAO_AQUI") {
         // Se for um pedido real e tivermos token, tenta verificar no Mercado Pago agora mesmo
         try {
           const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
           const payment = new Payment(client);
-          const paymentData = await payment.get({ id: order.mp_id });
-          if (paymentData.status === 'approved') {
-            await db.execute("UPDATE orders SET payment_status = 'approved', status = 'processando' WHERE id = ?", [id]);
-            currentStatus = 'approved';
-            // 📧 Enviar e-mail de pagamento confirmado (apenas se não era approved antes)
-            if (order.payment_status !== 'approved') {
-              sendOrderEmail("approved", id);
+          
+          // 🔑 CORREÇÃO CARTÃO: mp_id pode ser da preferência (cartão) ou do pagamento (pix).
+          // Buscamos por external_reference (=orderId) para garantir que encontramos o pagamento real.
+          const searchResult = await payment.search({ options: { external_reference: id, limit: 1 } });
+          const realPayment = searchResult?.results?.[0];
+
+          if (realPayment) {
+            const mpStatus = realPayment.status;
+            // Salva o mp_id real obtido pela busca (corrige pedidos de cartão)
+            await db.execute("UPDATE orders SET mp_id = ? WHERE id = ? AND mp_id != ?", [realPayment.id?.toString() || order.mp_id, id, realPayment.id?.toString() || order.mp_id]);
+            if (mpStatus === 'approved') {
+              await db.execute("UPDATE orders SET payment_status = 'approved', status = 'processando' WHERE id = ?", [id]);
+              currentStatus = 'approved';
+              if (order.payment_status !== 'approved') {
+                sendOrderEmail("approved", id);
+              }
+            } else if (mpStatus === 'rejected' || mpStatus === 'cancelled') {
+              await db.execute("UPDATE orders SET payment_status = ?, status = 'cancelado' WHERE id = ?", [mpStatus, id]);
+              currentStatus = mpStatus;
+              if (order.payment_status !== 'cancelled' && order.payment_status !== 'rejected') {
+                await restoreStockForOrder(id);
+              }
             }
-          } else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
-             await db.execute("UPDATE orders SET payment_status = ?, status = 'cancelado' WHERE id = ?", [paymentData.status, id]);
-             currentStatus = paymentData.status;
-             // Restaurar estoque se pagamento foi rejeitado/cancelado
-             if (order.payment_status !== 'cancelled' && order.payment_status !== 'rejected') {
-               await restoreStockForOrder(id);
-             }
           }
         } catch (mpErr) {
           console.error("Erro ao verificar status MP em tempo real:", mpErr);
