@@ -1,7 +1,7 @@
 import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck, Tag, ToggleLeft, ToggleRight, Clock } from "lucide-react";
+import { Upload, Plus, CheckCircle, AlertCircle, Package, Trash2, Search, ChevronDown, ChevronUp, MapPin, CreditCard, User, Mail, Truck, Tag, ToggleLeft, ToggleRight, Clock, MessageCircle } from "lucide-react";
 import { Product, User as UserType } from "../types";
 
 export function Admin({ user }: { user: UserType | null }) {
@@ -290,6 +290,45 @@ export function Admin({ user }: { user: UserType | null }) {
     } catch (e) {
       alert("Falha de comunicação ao reenviar e-mail.");
     }
+  };
+
+  const handleWhatsAppStatus = (order: any) => {
+    if (!order.customer?.phone) {
+      alert("O cliente não informou um número de telefone.");
+      return;
+    }
+    const phone = order.customer.phone.replace(/\D/g, "");
+    if (phone.length < 10) {
+      alert("Número de telefone inválido.");
+      return;
+    }
+
+    let message = `Olá, ${order.customer.name}! Tudo bem?\n\nSomos da *SUOPES TACTICAL*.\n`;
+    
+    if (order.status === 'pendente') {
+      message += `Seu pedido *${order.id}* está aguardando confirmação de pagamento.`;
+      if (order.paymentMethod === 'pix' && order.mpId) {
+        message += `\nCaso não tenha finalizado, você pode acessar pelo site na aba "ACOMPANHAR PEDIDO" ou finalizar sua compra.`;
+      }
+    } else if (order.status === 'processando') {
+      message += `Seu pagamento do pedido *${order.id}* foi confirmado! ✅\n\nNossa equipe já está separando e preparando seu equipamento tático para o envio.`;
+    } else if (order.status === 'enviado') {
+      message += `Seu pedido *${order.id}* acabou de ser *ENVIADO*! 🚚\n\n`;
+      if (order.trackingCode) {
+        message += `📦 *Rastreio:* ${order.trackingCode}\n`;
+        message += `🚛 *Transportadora:* ${order.carrier || 'Correios'}\n`;
+      }
+      message += `Acompanhe a entrega pelo link ou direto no nosso site!`;
+    } else if (order.status === 'concluido') {
+      message += `Seu pedido *${order.id}* consta como *ENTREGUE*! ✅\n\nEsperamos que aproveite o seu novo equipamento tático. Qualquer dúvida, estamos à disposição.`;
+    } else {
+      message += `Tivemos uma atualização no seu pedido *${order.id}*. Status atual: *${getStatusLabel(order.status)}*.`;
+    }
+
+    message += `\n\nAcompanhe seu pedido: https://suopestactical.com/compras`;
+
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/55${phone}?text=${encodedMessage}`, "_blank");
   };
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -1125,9 +1164,15 @@ export function Admin({ user }: { user: UserType | null }) {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleResendEmail(order.id, order.paymentStatus === 'approved' ? 'approved' : 'confirmation'); }}
-                                className="mt-1 w-full px-4 py-2 text-[9px] font-mono uppercase tracking-widest border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 transition-all"
+                                className="mt-1 w-full px-4 py-2 text-[9px] font-mono uppercase tracking-widest border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2"
                               >
-                                📧 REENVIAR E-MAIL AO CLIENTE
+                                📧 REENVIAR E-MAIL
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleWhatsAppStatus(order); }}
+                                className="mt-1 w-full px-4 py-2 text-[9px] font-mono uppercase tracking-widest border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all flex items-center justify-center gap-2"
+                              >
+                                <MessageCircle size={10} /> NOTIFICAR NO WHATSAPP
                               </button>
                             </div>
                           </div>
