@@ -263,13 +263,32 @@ export function Admin({ user }: { user: UserType | null }) {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`${data.message}`);
+        alert(data.message || `Status do pagamento: ${data.paymentStatus}`);
         fetchAdminOrders();
       } else {
         alert(`Erro: ${data.message}`);
       }
     } catch (e) {
       alert("Falha de comunicação ao consultar pagamento.");
+    }
+  };
+
+  const handleResendEmail = async (orderId: string, type: "approved" | "confirmation" = "approved") => {
+    if (!confirm(`Reenviar e-mail de ${type === "approved" ? "pagamento aprovado" : "confirmação de pedido"} para o cliente do pedido ${orderId}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/resend-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user?.token}` },
+        body: JSON.stringify({ type })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ ${data.message}`);
+      } else {
+        alert(`Erro: ${data.message}`);
+      }
+    } catch (e) {
+      alert("Falha de comunicação ao reenviar e-mail.");
     }
   };
 
@@ -1078,6 +1097,12 @@ export function Admin({ user }: { user: UserType | null }) {
                                 className="mt-2 w-full px-4 py-2 text-[9px] font-mono uppercase tracking-widest border border-suopes-gold text-suopes-gold hover:bg-suopes-gold hover:text-black transition-all"
                               >
                                 🔍 VERIFICAR PAGAMENTO NO MP
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleResendEmail(order.id, order.paymentStatus === 'approved' ? 'approved' : 'confirmation'); }}
+                                className="mt-1 w-full px-4 py-2 text-[9px] font-mono uppercase tracking-widest border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 transition-all"
+                              >
+                                📧 REENVIAR E-MAIL AO CLIENTE
                               </button>
                             </div>
                           </div>

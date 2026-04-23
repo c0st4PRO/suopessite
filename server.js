@@ -1662,16 +1662,38 @@ async function startServer() {
       }
       const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
-      const paymentData = await payment.get({ id: order.mp_id });
-      const mpStatus = paymentData.status;
-      await db.execute("UPDATE orders SET payment_status = ? WHERE id = ?", [mpStatus, id]);
+      const searchResult = await payment.search({ options: { external_reference: id, limit: 1 } });
+      const realPayment = searchResult?.results?.[0];
+      if (!realPayment) {
+        return res.status(404).json({ message: "Nenhum pagamento encontrado no MP para este pedido. O cliente pode ainda n\xE3o ter conclu\xEDdo o pagamento." });
+      }
+      const mpStatus = realPayment.status;
+      const realMpId = realPayment.id?.toString() || order.mp_id;
+      await db.execute("UPDATE orders SET payment_status = ?, mp_id = ? WHERE id = ?", [mpStatus, realMpId, id]);
       if (mpStatus === "approved") {
         await db.execute("UPDATE orders SET status = 'processando' WHERE id = ? AND status = 'pendente'", [id]);
+        if (order.payment_status !== "approved") {
+          sendOrderEmail("approved", id);
+        }
       }
-      res.json({ success: true, paymentStatus: mpStatus });
+      res.json({ success: true, paymentStatus: mpStatus, mpPaymentId: realMpId });
     } catch (err) {
       console.error("Erro ao consultar pagamento:", err);
       res.status(500).json({ message: `Erro ao consultar: ${err.message}` });
+    }
+  });
+  app.post("/api/admin/orders/:id/resend-email", requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { type } = req.body;
+    try {
+      const [orders] = await db.execute("SELECT id, customer_email FROM orders WHERE id = ?", [id]);
+      if (orders.length === 0) return res.status(404).json({ message: "Pedido n\xE3o encontrado." });
+      const emailType = type === "confirmation" ? "confirmation" : "approved";
+      await sendOrderEmail(emailType, id);
+      res.json({ success: true, message: `E-mail reenviado para ${orders[0].customer_email}.` });
+    } catch (err) {
+      console.error("Erro ao reenviar e-mail:", err);
+      res.status(500).json({ message: `Erro ao reenviar: ${err.message}` });
     }
   });
   app.get("/api/orders", authenticateToken, async (req, res) => {
