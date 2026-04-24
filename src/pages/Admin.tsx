@@ -297,38 +297,76 @@ export function Admin({ user }: { user: UserType | null }) {
       alert("O cliente não informou um número de telefone.");
       return;
     }
-    const phone = order.customer.phone.replace(/\D/g, "");
-    if (phone.length < 10) {
-      alert("Número de telefone inválido.");
+    const rawPhone = order.customer.phone.replace(/\D/g, "");
+    const phone = rawPhone.startsWith("55") ? rawPhone : `55${rawPhone}`;
+    if (phone.length < 12) {
+      alert("Numero de telefone invalido.");
       return;
     }
 
-    let message = `Olá, ${order.customer.name}! Tudo bem?\n\nSomos da *SUOPES TACTICAL*.\n`;
-    
-    if (order.status === 'pendente') {
-      message += `Seu pedido *${order.id}* está aguardando confirmação de pagamento.`;
-      if (order.paymentMethod === 'pix' && order.mpId) {
-        message += `\nCaso não tenha finalizado, você pode acessar pelo site na aba "ACOMPANHAR PEDIDO" ou finalizar sua compra.`;
-      }
-    } else if (order.status === 'processando') {
-      message += `Seu pagamento do pedido *${order.id}* foi confirmado! ✅\n\nNossa equipe já está separando e preparando seu equipamento tático para o envio.`;
-    } else if (order.status === 'enviado') {
-      message += `Seu pedido *${order.id}* acabou de ser *ENVIADO*! 🚚\n\n`;
-      if (order.trackingCode) {
-        message += `📦 *Rastreio:* ${order.trackingCode}\n`;
-        message += `🚛 *Transportadora:* ${order.carrier || 'Correios'}\n`;
-      }
-      message += `Acompanhe a entrega pelo link ou direto no nosso site!`;
-    } else if (order.status === 'concluido') {
-      message += `Seu pedido *${order.id}* consta como *ENTREGUE*! ✅\n\nEsperamos que aproveite o seu novo equipamento tático. Qualquer dúvida, estamos à disposição.`;
+    const firstName = (order.customer.name || "").split(" ")[0] || "Operador";
+    const itemsList = (order.items || []).slice(0, 3).map((i: any) =>
+      `  - ${i.name}${i.color ? ` (${i.color})` : ""}${i.size ? ` Tam. ${i.size}` : ""} x${i.quantity}`
+    ).join("\n");
+
+    // Image links (first item that has an image)
+    const firstImg = (order.items || []).find((i: any) => i.image);
+    const imgNote = firstImg?.image
+      ? `\nVeja seu produto: https://suopestactical.com${firstImg.image.startsWith("/") ? firstImg.image : "/" + firstImg.image}`
+      : "";
+
+    let message = "";
+
+    if (order.status === "pendente") {
+      const method = order.paymentMethod === "pix" ? "PIX" : "cartao de credito";
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Vimos que voce montou um pedido incrivel conosco e ainda nao finalizou o pagamento via *${method}*.\n\n` +
+        `*Seu carrinho esta reservado:*\n${itemsList}\n\n` +
+        `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n` +
+        (imgNote ? imgNote + "\n" : "") +
+        `\nNao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
+        `*Para finalizar o pagamento, acesse:*\nhttps://suopestactical.com/compras\n\n` +
+        `Qualquer duvida, responda aqui mesmo. Estamos prontos para ajudar!`;
+    } else if (order.status === "processando") {
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Otima noticia! Seu pagamento do pedido *${order.id}* foi *CONFIRMADO*.\n\n` +
+        `*Itens em preparacao:*\n${itemsList}\n\n` +
+        (imgNote ? imgNote + "\n\n" : "") +
+        `Nossa equipe ja esta separando e preparando seu equipamento tatico para o envio. Em breve voce recebera o codigo de rastreio!\n\n` +
+        `Acompanhe: https://suopestactical.com/compras`;
+    } else if (order.status === "enviado") {
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Seu pedido *${order.id}* acaba de ser *ENVIADO*!\n\n` +
+        (order.trackingCode
+          ? `*Codigo de rastreio:* ${order.trackingCode}\n*Transportadora:* ${order.carrier || "Correios"}\n\n`
+          : "") +
+        `*Itens enviados:*\n${itemsList}\n\n` +
+        (imgNote ? imgNote + "\n\n" : "") +
+        `Rastreie sua entrega em: https://www.linkcorreios.com.br\n\n` +
+        `Qualquer duvida, estamos aqui!`;
+    } else if (order.status === "concluido") {
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Seu pedido *${order.id}* foi marcado como *ENTREGUE*!\n\n` +
+        `Esperamos que voce esteja amando cada item. Se precisar de qualquer suporte, e so responder aqui.\n\n` +
+        `Obrigado por confiar na SUOPES TACTICAL! Volte sempre.\nhttps://suopestactical.com`;
+    } else if (order.status === "cancelado") {
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Seu pedido *${order.id}* foi *cancelado*.\n\n` +
+        `Se isso foi um engano ou voce gostaria de refazer o pedido, e so nos avisar. Estamos a disposicao!\n\nhttps://suopestactical.com`;
     } else {
-      message += `Tivemos uma atualização no seu pedido *${order.id}*. Status atual: *${getStatusLabel(order.status)}*.`;
+      message =
+        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+        `Houve uma atualizacao no seu pedido *${order.id}*.\n` +
+        `Status atual: *${getStatusLabel(order.status)}*\n\n` +
+        `Acompanhe em: https://suopestactical.com/compras`;
     }
 
-    message += `\n\nAcompanhe seu pedido: https://suopestactical.com/compras`;
-
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/55${phone}?text=${encodedMessage}`, "_blank");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   const handleDeleteOrder = async (orderId: string) => {
