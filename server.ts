@@ -2445,6 +2445,11 @@ async function startServer() {
         return res.status(400).json({ message: `Status inválido. Use: ${validStatuses.join(", ")}` });
       }
 
+      // Buscar status atual para detectar se houve mudança real
+      const [currentRows]: any = await db.execute("SELECT status FROM orders WHERE id = ?", [id]);
+      if (currentRows.length === 0) return res.status(404).json({ message: "Pedido não encontrado." });
+      const oldStatus = currentRows[0].status;
+
       let query = "UPDATE orders SET ";
       let params: any[] = [];
       let updates = [];
@@ -2471,8 +2476,8 @@ async function startServer() {
       
       if (result.affectedRows === 0) return res.status(404).json({ message: "Pedido não encontrado." });
 
-      // Enviar e-mail de atualização de status ao cliente
-      if (status) {
+      // So envia e-mail se o status REALMENTE mudou (evita disparo ao salvar apenas o rastreio)
+      if (status && status !== oldStatus) {
         sendStatusEmail(id, status).catch(err => console.error(`[EMAIL] Erro ao enviar status email:`, err));
       }
 

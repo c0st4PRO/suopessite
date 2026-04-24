@@ -2082,6 +2082,9 @@ async function startServer() {
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ message: `Status inv\xE1lido. Use: ${validStatuses.join(", ")}` });
       }
+      const [currentRows] = await db.execute("SELECT status FROM orders WHERE id = ?", [id]);
+      if (currentRows.length === 0) return res.status(404).json({ message: "Pedido n\xE3o encontrado." });
+      const oldStatus = currentRows[0].status;
       let query = "UPDATE orders SET ";
       let params = [];
       let updates = [];
@@ -2102,7 +2105,7 @@ async function startServer() {
       params.push(id);
       const [result] = await db.execute(query, params);
       if (result.affectedRows === 0) return res.status(404).json({ message: "Pedido n\xE3o encontrado." });
-      if (status) {
+      if (status && status !== oldStatus) {
         sendStatusEmail(id, status).catch((err) => console.error(`[EMAIL] Erro ao enviar status email:`, err));
       }
       res.json({ success: true, message: `Pedido ${id} atualizado com sucesso.` });

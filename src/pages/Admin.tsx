@@ -309,12 +309,6 @@ export function Admin({ user }: { user: UserType | null }) {
       `  - ${i.name}${i.color ? ` (${i.color})` : ""}${i.size ? ` Tam. ${i.size}` : ""} x${i.quantity}`
     ).join("\n");
 
-    // Image links (first item that has an image)
-    const firstImg = (order.items || []).find((i: any) => i.image);
-    const imgNote = firstImg?.image
-      ? `\nVeja seu produto: https://suopestactical.com${firstImg.image.startsWith("/") ? firstImg.image : "/" + firstImg.image}`
-      : "";
-
     let message = "";
 
     if (order.status === "pendente") {
@@ -323,9 +317,8 @@ export function Admin({ user }: { user: UserType | null }) {
         `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
         `Vimos que voce montou um pedido incrivel conosco e ainda nao finalizou o pagamento via *${method}*.\n\n` +
         `*Seu carrinho esta reservado:*\n${itemsList}\n\n` +
-        `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n` +
-        (imgNote ? imgNote + "\n" : "") +
-        `\nNao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
+        `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n\n` +
+        `Nao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
         `*Para finalizar o pagamento, acesse:*\nhttps://suopestactical.com/compras\n\n` +
         `Qualquer duvida, responda aqui mesmo. Estamos prontos para ajudar!`;
     } else if (order.status === "processando") {
@@ -333,7 +326,6 @@ export function Admin({ user }: { user: UserType | null }) {
         `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
         `Otima noticia! Seu pagamento do pedido *${order.id}* foi *CONFIRMADO*.\n\n` +
         `*Itens em preparacao:*\n${itemsList}\n\n` +
-        (imgNote ? imgNote + "\n\n" : "") +
         `Nossa equipe ja esta separando e preparando seu equipamento tatico para o envio. Em breve voce recebera o codigo de rastreio!\n\n` +
         `Acompanhe: https://suopestactical.com/compras`;
     } else if (order.status === "enviado") {
@@ -344,7 +336,6 @@ export function Admin({ user }: { user: UserType | null }) {
           ? `*Codigo de rastreio:* ${order.trackingCode}\n*Transportadora:* ${order.carrier || "Correios"}\n\n`
           : "") +
         `*Itens enviados:*\n${itemsList}\n\n` +
-        (imgNote ? imgNote + "\n\n" : "") +
         `Rastreie sua entrega em: https://www.linkcorreios.com.br\n\n` +
         `Qualquer duvida, estamos aqui!`;
     } else if (order.status === "concluido") {
