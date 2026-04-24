@@ -313,49 +313,49 @@ export function Admin({ user }: { user: UserType | null }) {
 
     // Se o pagamento NÃO estiver aprovado, sempre mostrar mensagem de cobrança/pendente
     if (order.paymentStatus !== "approved") {
-      const method = order.paymentMethod === "pix" ? "PIX" : "cartao de credito";
+      const method = order.paymentMethod === "pix" ? "PIX" : "cartão de crédito";
       message =
-        `Ola, ${firstName}! Aqui e da *SUOPES TACTICAL*. 💀\n\n` +
-        `Vimos que voce montou um pedido conosco e nao finalizou o pagamento via *${method}*.\n\n` +
-        `*Seu carrinho esta reservado:*\n${itemsList}\n\n` +
+        `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*. 💀\n\n` +
+        `Vimos que você montou um pedido conosco e não finalizou o pagamento via *${method}*.\n\n` +
+        `*Seu carrinho está reservado:*\n${itemsList}\n\n` +
         `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n\n` +
-        `Nao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
+        `Não deixe seu equipamento escapar! O estoque é limitado e sua seleção pode não estar disponível por muito tempo.\n\n` +
         `*Para finalizar o pagamento, acesse:*\nhttps://suopestactical.com/compras\n\n` +
-        `Qualquer duvida, responda aqui mesmo. Estamos prontos para ajudar! 🤙`;
+        `Qualquer dúvida, responda aqui mesmo. Estamos prontos para ajudar! 🤙`;
     } else {
       // Se estiver aprovado, segue o fluxo do status do pedido (logística)
       if (order.status === "processando" || order.status === "pendente") {
         message =
-          `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
-          `Otima noticia! Seu pagamento do pedido *${order.id}* foi *CONFIRMADO*.\n\n` +
-          `*Itens em preparacao:*\n${itemsList}\n\n` +
-          `Nossa equipe ja esta separando e preparando seu equipamento tatico para o envio. Em breve voce recebera o codigo de rastreio!\n\n` +
+          `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*.\n\n` +
+          `Ótima notícia! Seu pagamento do pedido *${order.id}* foi *CONFIRMADO*.\n\n` +
+          `*Itens em preparação:*\n${itemsList}\n\n` +
+          `Nossa equipe já está separando e preparando seu equipamento tático para o envio. Em breve você receberá o código de rastreio!\n\n` +
           `Acompanhe: https://suopestactical.com/compras`;
       } else if (order.status === "enviado") {
         message =
-          `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+          `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*.\n\n` +
           `Seu pedido *${order.id}* acaba de ser *ENVIADO*!\n\n` +
           (order.trackingCode
-            ? `*Codigo de rastreio:* ${order.trackingCode}\n*Transportadora:* ${order.carrier || "Correios"}\n\n`
+            ? `*Código de rastreio:* ${order.trackingCode}\n*Transportadora:* ${order.carrier || "Correios"}\n\n`
             : "") +
           `*Itens enviados:*\n${itemsList}\n\n` +
           `Rastreie sua entrega em: https://www.linkcorreios.com.br\n\n` +
-          `Qualquer duvida, estamos aqui!`;
+          `Qualquer dúvida, estamos aqui!`;
       } else if (order.status === "concluido") {
         message =
-          `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+          `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*.\n\n` +
           `Seu pedido *${order.id}* foi marcado como *ENTREGUE*!\n\n` +
-          `Esperamos que voce esteja amando cada item. Se precisar de qualquer suporte, e so responder aqui.\n\n` +
+          `Esperamos que você esteja amando cada item. Se precisar de qualquer suporte, é só responder aqui.\n\n` +
           `Obrigado por confiar na SUOPES TACTICAL! Volte sempre.\nhttps://suopestactical.com`;
       } else if (order.status === "cancelado") {
         message =
-          `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
+          `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*.\n\n` +
           `Seu pedido *${order.id}* foi *cancelado*.\n\n` +
-          `Se isso foi um engano ou voce gostaria de refazer o pedido, e so nos avisar. Estamos a disposicao!\n\nhttps://suopestactical.com`;
+          `Se isso foi um engano ou você gostaria de refazer o pedido, é só nos avisar. Estamos à disposição!\n\nhttps://suopestactical.com`;
       } else {
         message =
-          `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
-          `Houve uma atualizacao no seu pedido *${order.id}*.\n` +
+          `Olá, ${firstName}! Aqui é da *SUOPES TACTICAL*.\n\n` +
+          `Houve uma atualização no seu pedido *${order.id}*.\n` +
           `Status atual: *${getStatusLabel(order.status)}*\n\n` +
           `Acompanhe em: https://suopestactical.com/compras`;
       }
