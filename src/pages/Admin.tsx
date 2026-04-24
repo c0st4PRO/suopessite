@@ -316,7 +316,7 @@ export function Admin({ user }: { user: UserType | null }) {
       const method = order.paymentMethod === "pix" ? "PIX" : "cartao de credito";
       message =
         `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
-        `Vimos que voce montou um pedido incrivel conosco e ainda nao finalizou o pagamento via *${method}*.\n\n` +
+        `Vimos que voce montou um pedido conosco e ainda nao finalizou o pagamento via *${method}*.\n\n` +
         `*Seu carrinho esta reservado:*\n${itemsList}\n\n` +
         `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n\n` +
         `Nao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
