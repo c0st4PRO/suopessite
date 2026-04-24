@@ -315,13 +315,13 @@ export function Admin({ user }: { user: UserType | null }) {
     if (order.paymentStatus !== "approved") {
       const method = order.paymentMethod === "pix" ? "PIX" : "cartao de credito";
       message =
-        `Ola, ${firstName}! Aqui e a *SUOPES TACTICAL*.\n\n` +
-        `Vimos que voce montou um pedido conosco e ainda nao finalizou o pagamento via *${method}*.\n\n` +
+        `Ola, ${firstName}! Aqui e da *SUOPES TACTICAL*. 💀\n\n` +
+        `Vimos que voce montou um pedido conosco e nao finalizou o pagamento via *${method}*.\n\n` +
         `*Seu carrinho esta reservado:*\n${itemsList}\n\n` +
         `*Total: R$ ${Number(order.total || 0).toFixed(2)}*\n\n` +
         `Nao deixe seu equipamento escapar! O estoque e limitado e sua selecao pode nao estar disponivel por muito tempo.\n\n` +
         `*Para finalizar o pagamento, acesse:*\nhttps://suopestactical.com/compras\n\n` +
-        `Qualquer duvida, responda aqui mesmo. Estamos prontos para ajudar!`;
+        `Qualquer duvida, responda aqui mesmo. Estamos prontos para ajudar! 🤙`;
     } else {
       // Se estiver aprovado, segue o fluxo do status do pedido (logística)
       if (order.status === "processando" || order.status === "pendente") {
